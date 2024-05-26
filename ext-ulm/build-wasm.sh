@@ -10,22 +10,23 @@ set -e
 wasm32-wasi-cabal build exe:ulm
 wasm32-wasi-cabal list-bin exe:ulm
 BUILT="$(wasm32-wasi-cabal list-bin exe:ulm)"
+DIR=welmo/serve
 
-cp "$BUILT" dist/ulm.wasm
-tar -czvf dist/ulm.tar.gz dist/ulm.wasm
+cp "$BUILT" "$DIR/ulm.wasm"
+tar -czvf "$DIR/ulm.tar.gz" "$DIR/ulm.wasm"
 # Generate JS wrapper
-$(wasm32-wasi-ghc --print-libdir)/post-link.mjs -i dist/ulm.wasm -o dist/ulm.js
+$(wasm32-wasi-ghc --print-libdir)/post-link.mjs -i "$DIR/ulm.wasm" -o "$DIR/ulm.js"
 
 echo "NOTE: Disabled wasm compression"
 exit 0
 
 # "-Oz" -> optimize for file size
-wasm-opt -Oz "dist/ulm.wasm" -o "dist/ulm.opt.wasm"
+wasm-opt -Oz "$DIR/ulm.wasm" -o "$DIR/ulm.opt.wasm"
 # For more optimiztion, look how wizer is used in
 # https://github.com/tweag/ormolu/blob/607978708809d97945c6036a60b8ffb9b719bc60/ormolu-live/cbits/init.c
-tar -czvf dist/ulm.opt.tar.gz dist/ulm.opt.wasm
+tar -czvf "$DIR/ulm.opt.tar.gz" "$DIR/ulm.opt.wasm"
 
-tree -h dist
+tree -h "$DIR"
 
 echo "NOTE: Disabled optimizer pass with wizer because I did not set it up properly"
 exit 0
@@ -34,7 +35,7 @@ exit 0
 # https://github.com/tweag/ormolu/blob/607978708809d97945c6036a60b8ffb9b719bc60/ormolu-live/cbits/init.c
 wizer \
     --allow-wasi --wasm-bulk-memory true \
-    "$BUILT" -o "dist/ulm.wizer.wasm" 
-wasm-opt "-Oz" "dist/ulm.wizer.wasm" -o "dist/ulm.wizer.opt.wasm"
-tar -czvf dist/ulm.wizer.opt.tar.gz dist/ulm.wizer.opt.wasm
-tree -h dist
+    "$BUILT" -o "$DIR/ulm.wizer.wasm" 
+wasm-opt "-Oz" "$DIR/ulm.wizer.wasm" -o "$DIR/ulm.wizer.opt.wasm"
+tar -czvf "$DIR/ulm.wizer.opt.tar.gz" "$DIR/ulm.wizer.opt.wasm"
+tree -h "$DIR"
