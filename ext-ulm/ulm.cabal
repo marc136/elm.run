@@ -28,11 +28,8 @@ version:            0.1.0.0
 -- A longer description of the package.
 -- description:
 
--- The license under which the package is released.
-license:            EUPL-1.2
-
--- The file containing the license text.
-license-file:       LICENSE
+license:            BSD-3-Clause
+license-file:       LICENSE.txt
 
 -- The package author(s).
 author:             Marc Walter
