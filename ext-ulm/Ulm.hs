@@ -1,28 +1,30 @@
 module Ulm where
 
-
 import qualified AST.Canonical as Can
 import AST.Optimized as Opt
 import qualified AST.Source as Src
 import qualified Compile
 import qualified Data.ByteString.Builder
+import qualified Data.ByteString.Lazy
+import qualified Data.ByteString.Lazy.UTF8 -- from utf8-string
 import qualified Data.ByteString.UTF8 as BSU -- from utf8-string
 import qualified Data.Map as Map
-import qualified Data.Map.Utils as Map
-import qualified Data.Name as Name
-import qualified Elm.Interface
-import qualified Elm.Interface as I
+import qualified Data.Name
+import Debug.Trace
 import qualified Elm.ModuleName as ModuleName
 import qualified Elm.Package as Pkg
+import qualified File
 import qualified Generate.Mode as Mode
-import Debug.Trace
 import qualified Generate.JavaScript as JS
-import GHC.Wasm.Prim -- See https://gitlab.haskell.org/ghc/ghc/-/commit/317a915bc46fee2c824d595b0d618057bf7fbbf1#82b5a034883a3ede9540d6423738da627660f860
+import qualified Json.Encode
+import Json.Encode ((==>))
+import qualified GHC.Wasm.Prim as Wasm -- See https://gitlab.haskell.org/ghc/ghc/-/commit/317a915bc46fee2c824d595b0d618057bf7fbbf1#82b5a034883a3ede9540d6423738da627660f860
 import qualified Parse.Module as Parse
 import qualified Reporting.Error
 import qualified Reporting.Error.Syntax as Syntax
+import qualified Reporting.Exit.Help
 import qualified Wasm.ReadArtifacts as ReadArtifacts
-
+import qualified Wasm.Reporting
 
 main :: IO ()
 main = mempty
@@ -33,53 +35,97 @@ buildArtifacts = putStrLn "TODO buildArtifacts"
 -- The main compilation logic is the same as
 -- `../worker/src/Endpoint/Compile.hs``
 
+data Outcome
+  = Success ModuleName.Raw String
+  | NoMain
+  | BadInput ModuleName.Raw Reporting.Error.Error
+
 foreign export javascript "compile"
-  compile :: JSString -> IO JSString
-compile jsString =
+  compileWasm :: Wasm.JSString -> IO Wasm.JSString
+
+compileWasm :: Wasm.JSString -> IO Wasm.JSString
+compileWasm jsString =
   let
-    str = fromJSString jsString
+    str = Wasm.fromJSString jsString
     source = BSU.fromString $ trace "parsing" $ traceShowId str
   in
+  do
+    outcome <- compile source
+    pure $ encodeJson $ outcomeToJson source outcome
+
+compile :: BSU.ByteString -> IO Outcome
+compile source =
   case parse source of
     Left err ->
-      let wrapped = Reporting.Error.BadSyntax err
-    --    in return $ errorToJSString source wrapped
-        in return $ toJSString "NoMain"
+      pure $ BadInput Data.Name._Main (Reporting.Error.BadSyntax err)
 
     Right modul@(Src.Module _ _ _ imports _ _ _ _ _) ->
       -- TODO add a way to verify imports
       let importNames = fmap Src.getImportName imports in
         do
           artifacts <- ReadArtifacts.getArtifactsForWasm
-          traceShow "show importNames" $
-        --   traceShow "show importNames" $ traceShow importNames $
-            case Compile.compile Pkg.dummyName (ReadArtifacts.interfaces artifacts) modul of
+          -- traceShow "show importNames" $ traceShow importNames $
+          case Compile.compile Pkg.dummyName (ReadArtifacts.interfaces artifacts) modul of
               Left err ->
-                -- TODO hier möchte ich den error report generieren und als JSString zurück geben
-                return $ toJSString "Compile failed"
-                -- return $ errorToJSString source err
+                pure $ BadInput (Src.getName modul) err
 
               Right (Compile.Artifacts canModule _ locals) ->
                 trace "Compile did not fail" $ case locals of
                   Opt.LocalGraph Nothing _ _ ->
-                    return $ toJSString "NoMain"
-                  Opt.LocalGraph (Just main_) _ _ ->
-                    let mode = Mode.Dev Nothing
-                        home = Can._name canModule
-                        name = ModuleName._module home
-                        mains = Map.singleton home main_
-                        graph = Opt.addLocalGraph locals (ReadArtifacts.objects artifacts)
-                        js :: Data.ByteString.Builder.Builder
-                        js = trace "generated js" $ JS.generate mode graph mains
-                        _ = traceShowId js
-                     in -- in Success name $ JS.generate mode graph mains
-                        do
-                          -- File.writeBuilder "/tmp/generated.js" js
-                          trace "Success, generated JS code" $ Data.ByteString.Builder.writeFile "/tmp/generated.js" js
-                          -- return (builderToJsString js)
-                          return (toJSString "/tmp/generated.js")
+                    pure NoMain
 
+                  Opt.LocalGraph (Just main_) _ _ ->
+                    let 
+                      mode = Mode.Dev Nothing
+                      home = Can._name canModule
+                      name = ModuleName._module home
+                      mains = Map.singleton home main_
+                      graph = Opt.addLocalGraph locals (ReadArtifacts.objects artifacts)
+                      js :: Data.ByteString.Builder.Builder
+                      js = trace "generated js" $ JS.generate mode graph mains
+                      _ = traceShowId js
+                      filename = "generated.js"
+                      filepath = "/tmp/" ++ filename
+                    in do
+                      trace "Success, generated JS code" $ Data.ByteString.Builder.writeFile filepath js
+                      pure $ Success name filename
 
 parse :: BSU.ByteString -> Either Syntax.Error Src.Module
 parse bs =
   Parse.fromByteString Parse.Application bs
+
+outcomeToJson :: BSU.ByteString -> Outcome -> Json.Encode.Value
+outcomeToJson source outcome =
+  case outcome of
+    Success _ file ->
+      Json.Encode.object
+        [ "type" ==> Json.Encode.chars "success"
+        , "file" ==> Json.Encode.chars file
+        ]
+
+    NoMain ->
+      reportToJson $ Wasm.Reporting.noMain
+
+    BadInput name err ->
+      reportToJson $
+        Reporting.Exit.Help.compilerReport "/"
+          (Reporting.Error.Module name "/try" File.zeroTime source err)
+          []
+
+reportToJson :: Reporting.Exit.Help.Report -> Json.Encode.Value
+reportToJson =
+  Reporting.Exit.Help.reportToJson
+
+encodeJson :: Json.Encode.Value -> Wasm.JSString
+encodeJson value =
+  builderToJsString $ Json.Encode.encode value
+
+builderToJsString :: Data.ByteString.Builder.Builder -> Wasm.JSString
+builderToJsString builder =
+  let
+    lazyStr :: Data.ByteString.Lazy.LazyByteString
+    lazyStr = Data.ByteString.Builder.toLazyByteString builder
+    str :: String
+    str = Data.ByteString.Lazy.UTF8.toString lazyStr
+  in
+  Wasm.toJSString str
