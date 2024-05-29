@@ -27,43 +27,6 @@ case $1 in
 esac
 
 
-
-## MAKE PAGE HTML
-
-
-function makePageHtml {
-  cat <<EOF > $1
-<!DOCTYPE HTML>
-<html lang="en">
-
-<head>
-  <title>$2</title>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A delightful language with friendly error messages, great performance, small assets, and no runtime exceptions.">
-  <meta name="robots" content="index, follow">
-  <link rel="shortcut icon" sizes="16x16 32x32 48x48 64x64 128x128 256x256" href="/favicon.ico">
-  <link rel="stylesheet" rel="preload" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans|Courier+Prime&display=swap">
-  <link rel="stylesheet" href="/assets/style.css">
-  <link rel="stylesheet" href="/assets/highlight/styles/default.css">
-  <script src="/assets/highlight/highlight.pack.js"></script>
-</head>
-
-<body>
-
-<script type="text/javascript">
-$(cat $3)
-var app = Elm.Main.init({ flags: { width: window.innerWidth, height : window.innerHeight } });
-</script>
-
-</body>
-</html>
-EOF
-
-}
-
-
-
 ## MAKE EXAMPLE HTML
 
 # ARGS:
@@ -179,38 +142,7 @@ mkdir -p _temp
 
 ## static
 
-cp -r static/* _site/
-
-## pages
-
-echo "PAGES"
-for elm in $(find pages -type f -name "*.elm")
-do
-    subpath="${elm#pages/}"
-    name="${subpath%.elm}"
-    js="_temp/$name.js"
-    html="_site/$name.html"
-
-    if [ -f $html ] && [ $(date -r $elm +%s) -le $(date -r $html +%s) ]; then
-        echo "Cached: $elm"
-    else
-        echo "Compiling: $elm"
-        mkdir -p $(dirname $js)
-        mkdir -p $(dirname $html)
-        rm -f elm-stuff/*/Main.elm*
-
-        if is_prod
-        then
-            elm make $elm --optimize --output=$js > /dev/null
-            uglifyjs $js --compress 'pure_funcs="F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9",pure_getters,keep_fargs=false,unsafe_comps,unsafe' \
-              | uglifyjs --mangle \
-              | makePageHtml $html $name
-        else
-            elm make $elm --output=$js > /dev/null
-            cat $js | makePageHtml $html $name
-        fi
-    fi
-done
+# cp -r static/* _site/
 
 ## editor
 
