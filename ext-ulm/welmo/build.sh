@@ -47,7 +47,7 @@ function makeExampleHtml {
   <link rel="shortcut icon" sizes="16x16 32x32 48x48 64x64 128x128 256x256" href="/favicon.ico">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Try out Elm: A delightful language with friendly error messages, great performance, small assets, and no runtime exceptions.">
-  <link rel="stylesheet" href="/assets/editor-styles.css"/>
+  <link rel="stylesheet" href="/editor/styles.css"/>
 </head>
 
 <body>
@@ -67,9 +67,9 @@ function makeExampleHtml {
 
 <main id="main"></main>
 <textarea id="original" style="display:none;">$(cat $5)</textarea>
-<script src="/assets/editor-codemirror.js"></script>
-<script src="/assets/editor-custom-elements.js"></script>
-<script src="/assets/editor-elm.js"></script>
+<script src="/editor/codemirror.js"></script>
+<script src="/editor/custom-elements.js"></script>
+<script src="/editor/elm.js"></script>
 <script>
   window.addEventListener('load', function() {
     var originalCode = document.getElementById('original').textContent;
@@ -94,6 +94,7 @@ function makeExampleHtml {
     window.addEventListener("message", gotErrors, false);
 
     function gotErrors(event) {
+      console.log('gotErrors', event)
       if (event.origin !== "https://elm.studio" && event.origin !== "https://social.elm.studio") return;
       if (event.data == "SUCCESS") {
         main.ports.gotSuccess.send(null);
@@ -123,7 +124,7 @@ EOF
 
 ## DOWNLOAD BINARIES
 
-PATH=$(pwd)/node_modules/.bin:$PATH
+PATH=$(pwd)/../../node_modules/.bin:$PATH
 
 if ! [ -x "$(command -v elm)" ]; then
   npm install elm@latest-0.19.1
@@ -135,9 +136,7 @@ fi
 
 ## GENERATE HTML
 
-
-mkdir -p _site
-mkdir -p _temp
+mkdir -p serve/editor
 
 ## static
 
@@ -145,7 +144,7 @@ mkdir -p _temp
 
 ## editor
 
-if ! [ -f _site/assets/editor-codemirror.js ] || ! [ -f _site/assets/editor-elm.js ] || ! [ -f _site/assets/editor-custom-elements.js ]; then
+if ! [ -f serve/editor/codemirror.js ] || ! [ -f serve/editor/elm.js ] || ! [ -f serve/editor/custom-elements.js ]; then
   echo "EDITOR"
   # code mirror
   cat editor/cm/lib/codemirror.js \
@@ -159,46 +158,42 @@ if ! [ -f _site/assets/editor-codemirror.js ] || ! [ -f _site/assets/editor-elm.
       editor/cm/lib/active-line.js \
       editor/cm/addon/dialog/dialog.js \
       editor/cm/keymap/sublime.js \
-      | uglifyjs -o _site/assets/editor-codemirror.js
+      | uglifyjs -o serve/editor/codemirror.js
 
   # custom elements
-  cat editor/code-editor.js editor/column-divider.js | uglifyjs -o _site/assets/editor-custom-elements.js
+  cat editor/code-editor.js editor/column-divider.js | uglifyjs -o serve/editor/custom-elements.js
 
   # styles
-  cat editor/cm/lib/codemirror.css editor/editor.css > _site/assets/editor-styles.css
+  cat editor/cm/lib/codemirror.css editor/editor.css > serve/editor/styles.css
 
   # elm
   (cd editor ; elm make src/Page/Editor.elm --optimize --output=elm.js)
-  uglifyjs editor/elm.js --compress 'pure_funcs="F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9",pure_getters,keep_fargs=false,unsafe_comps,unsafe' | uglifyjs --mangle -o _site/assets/editor-elm.js
+  uglifyjs editor/elm.js --compress 'pure_funcs="F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9",pure_getters,keep_fargs=false,unsafe_comps,unsafe' | uglifyjs --mangle -o serve/editor/elm.js
   rm editor/elm.js
 fi
 
 ## examples
 
 echo "EXAMPLES"
-for elm in $(find examples -type f -name "*.elm")
-do
-    deps="${elm%.elm}.json"
-    subpath="${elm#examples/}"
-    name="${subpath%.elm}"
-    html="_site/examples/$name.html"
+# for elm in $(find editor/examples -type f -name "*.elm")
+# do
+#     deps="${elm%.elm}.json"
+#     subpath="${elm#examples/}"
+#     name="${subpath%.elm}"
+#     html="serve/examples/$name.html"
 
-    if [ -f $html ] && [ $(date -r $elm +%s) -le $(date -r $html +%s) ]; then
-        echo "Cached: $elm"
-    else
-        echo "Compiling: $elm"
-        rm -f elm-stuff/*/Main.elm*
-        elm make $elm --output=_site/examples/_compiled/$name.html > /dev/null
-        cat $elm | makeExampleHtml $html $name $name $deps
-    fi
-done
+#     if [ -f $html ] && [ $(date -r $elm +%s) -le $(date -r $html +%s) ]; then
+#         echo "Cached: $elm"
+#     else
+#         echo "Compiling: $elm"
+#         rm -f elm-stuff/*/Main.elm*
+#         elm make $elm --output=serve/examples/_compiled/$name.html > /dev/null
+#         cat $elm | makeExampleHtml $html $name $name $deps
+#     fi
+# done
 
 ## try
 
-echo "" | makeExampleHtml _site/try.html "Try Elm!" _try "examples/try.json"
-cp editor/splash.html _site/examples/_compiled/_try.html
-
-
-## REMOVE TEMP FILES
-
-rm -rf _temp
+echo "" | makeExampleHtml serve/try.html "Try Elm!" _try "editor/examples/try.json"
+mkdir -p serve/examples/_compiled
+cp editor/splash.html serve/examples/_compiled/_try.html
