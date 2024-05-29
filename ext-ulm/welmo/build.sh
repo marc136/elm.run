@@ -47,7 +47,6 @@ function makeExampleHtml {
   <link rel="shortcut icon" sizes="16x16 32x32 48x48 64x64 128x128 256x256" href="/favicon.ico">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Try out Elm: A delightful language with friendly error messages, great performance, small assets, and no runtime exceptions.">
-  <link rel="stylesheet" rel="preload" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans|Courier+Prime&display=swap">
   <link rel="stylesheet" href="/assets/editor-styles.css"/>
 </head>
 

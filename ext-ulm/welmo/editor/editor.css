@@ -48,7 +48,7 @@ html, head, body {
 }
 
 body {
-  font-family: 'IBM Plex Sans', sans-serif;
+  font-family: system-ui, sans-serif;
   font-size: 14px;
   display: flex;
 }
@@ -460,7 +460,7 @@ h3 {
 }
 
 #package-query::placeholder {
-  font-family: 'IBM Plex Sans', sans-serif;
+  font-family: system-ui, sans-serif;
   font-size: 14px;
 }
 
