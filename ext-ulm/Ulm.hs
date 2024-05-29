@@ -97,10 +97,11 @@ parse bs =
 outcomeToJson :: BSU.ByteString -> Outcome -> Json.Encode.Value
 outcomeToJson source outcome =
   case outcome of
-    Success _ file ->
+    Success name file ->
       Json.Encode.object
         [ "type" ==> Json.Encode.chars "success"
         , "file" ==> Json.Encode.chars file
+        , "name" ==> Json.Encode.chars (ModuleName.toChars name)
         ]
 
     NoMain ->
