@@ -1,0 +1,4 @@
+[submodule "elm-compiler-wasm"]
+	path = elm-compiler-wasm
+	url = git@github.com:elm/compiler.git
+	branch = ulm-wasm
