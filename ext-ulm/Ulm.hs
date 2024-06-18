@@ -50,6 +50,8 @@ compileWasm jsString =
     source = BSU.fromString $ trace "parsing" $ traceShowId str
   in
   do
+    trace "wrote sample file" $ Data.ByteString.Builder.writeFile "/wasm-can-write" (Data.ByteString.Builder.stringUtf8 "horst")
+    trace "wrote sample file" $ Data.ByteString.Builder.writeFile "/packages/wasm-can-write" (Data.ByteString.Builder.stringUtf8 "horst")
     outcome <- compile source
     pure $ encodeJson $ outcomeToJson source outcome
 
@@ -87,6 +89,8 @@ compile source =
                       filename = "generated.js"
                       filepath = "/tmp/" ++ filename
                     in do
+                      trace "Success3, generated JS code" $ Data.ByteString.Builder.writeFile "/absolute.js" js
+                      trace "Success2, generated JS code" $ Data.ByteString.Builder.writeFile "./relative.js" js
                       trace "Success, generated JS code" $ Data.ByteString.Builder.writeFile filepath js
                       pure $ Success name filename
 
