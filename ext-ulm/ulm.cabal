@@ -84,7 +84,8 @@ executable ulm
     -- Directories containing source files.
     hs-source-dirs:
         ./,
-        ../compiler/src,
+        ../elm-compiler-wasm/compiler/src,
+        ../elm-compiler-wasm/builder/src,
         -- compiler/src,
         -- builder/src,
         --worker/src,
@@ -94,7 +95,96 @@ executable ulm
 
     -- Modules included in this executable, other than Main.
     other-modules:
-       
+        AST.Canonical
+        AST.Optimized
+        AST.Source
+        AST.Utils.Binop
+        AST.Utils.Shader
+        AST.Utils.Type
+        Canonicalize.Effects
+        Canonicalize.Environment
+        Canonicalize.Environment.Dups
+        Canonicalize.Environment.Foreign
+        Canonicalize.Environment.Local
+        Canonicalize.Expression
+        Canonicalize.Module
+        Canonicalize.Pattern
+        Canonicalize.Type
+        Compile
+        Data.Bag
+        Data.Index
+        Data.Map.Utils
+        Data.Name
+        Data.NonEmptyList
+        Data.OneOrMore
+        Data.Utf8
+        Elm.Compiler.Imports
+        Elm.Compiler.Type
+        Elm.Compiler.Type.Extract
+        Elm.Float
+        Elm.Interface
+        Elm.Kernel
+        Elm.ModuleName
+        Elm.Package
+        Elm.String
+        Elm.Version
+        File
+        Generate.JavaScript
+        Generate.JavaScript.Builder
+        Generate.JavaScript.Expression
+        Generate.JavaScript.Functions
+        Generate.JavaScript.Name
+        Generate.Mode
+        Json.Decode
+        Json.Encode
+        Json.String
+        Nitpick.PatternMatches
+        Optimize.Case
+        Optimize.DecisionTree
+        Optimize.Expression
+        Optimize.Module
+        Optimize.Names
+        Optimize.Port
+        Parse.Declaration
+        Parse.Expression
+        Parse.Keyword
+        Parse.Module
+        Parse.Number
+        Parse.Pattern
+        Parse.Primitives
+        Parse.Space
+        Parse.String
+        Parse.Symbol
+        Parse.Type
+        Parse.Variable
+        Reporting.Annotation
+        Reporting.Doc
+        Reporting.Error
+        Reporting.Error.Canonicalize
+        Reporting.Error.Docs
+        Reporting.Error.Import
+        Reporting.Error.Main
+        Reporting.Error.Pattern
+        Reporting.Error.Syntax
+        Reporting.Error.Type
+        Reporting.Render.Code
+        Reporting.Render.Type
+        Reporting.Render.Type.Localizer
+        Reporting.Report
+        Reporting.Result
+        Reporting.Suggest
+        Reporting.Warning
+        Type.Constrain.Expression
+        Type.Constrain.Module
+        Type.Constrain.Pattern
+        Type.Error
+        Type.Instantiate
+        Type.Occurs
+        Type.Solve
+        Type.Type
+        Type.Unify
+        Type.UnionFind
+        Wasm.ReadArtifacts
         --
         -- auto-generated during build, depends on project name
         -- in the Elm compiler, it is named `Paths_elm` instead
