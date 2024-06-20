@@ -192,5 +192,5 @@ executable ulm
         Type.UnionFind
 
         -- Files inside ulm-wasm
-        Wasm.ReadArtifacts
-        Wasm.Reporting
+        Ulm.ReadArtifacts
+        Ulm.Reporting
