@@ -92,7 +92,7 @@ compile source =
                       trace "Success3, generated JS code" $ Data.ByteString.Builder.writeFile "/absolute.js" js
                       trace "Success2, generated JS code" $ Data.ByteString.Builder.writeFile "./relative.js" js
                       trace "Success, generated JS code" $ Data.ByteString.Builder.writeFile filepath js
-                      pure $ Success name filename
+                      pure $ Success name filepath
 
 parse :: BSU.ByteString -> Either Syntax.Error Src.Module
 parse bs =

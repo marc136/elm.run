@@ -1,0 +1,10 @@
+node_modules
+
+# package registry
+dist/elm-home/0.19.1
+
+# compiled wasm files
+dist/ulm.opt.tar.gz
+dist/ulm.opt.wasm
+dist/ulm.tar.gz
+dist/ulm.wasm

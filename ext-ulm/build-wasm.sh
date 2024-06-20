@@ -10,7 +10,7 @@ set -e
 wasm32-wasi-cabal build exe:ulm
 wasm32-wasi-cabal list-bin exe:ulm
 BUILT="$(wasm32-wasi-cabal list-bin exe:ulm)"
-DIR=welmo/serve
+DIR=../www/dist
 
 cp "$BUILT" "$DIR/ulm.wasm"
 tar -czvf "$DIR/ulm.tar.gz" "$DIR/ulm.wasm"
