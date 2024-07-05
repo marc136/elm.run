@@ -68,7 +68,7 @@ export async function init() {
         console.info('Compilation result:', result);
 
         if (result.type === 'success' && result.file && result.name) {
-            const file = tmpDir.dir.contents.get(result.file);
+            const file = fs.dir.contents.get('tmp').contents.get(result.file);
             return wrapBufferInHtml(file.data, result.name);
         } else {
             throw result
