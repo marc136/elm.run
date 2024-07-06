@@ -12,6 +12,7 @@ import Data.Map qualified as Map
 import Data.Name qualified
 import Debug.Trace
 import Elm.ModuleName qualified as ModuleName
+import Elm.Outline qualified
 import Elm.Package qualified as Pkg
 import File qualified
 import GHC.Wasm.Prim qualified as Wasm -- See https://gitlab.haskell.org/ghc/ghc/-/commit/317a915bc46fee2c824d595b0d618057bf7fbbf1#82b5a034883a3ede9540d6423738da627660f860
@@ -23,11 +24,24 @@ import Parse.Module qualified as Parse
 import Reporting.Error qualified
 import Reporting.Error.Syntax qualified as Syntax
 import Reporting.Exit.Help qualified
+import ToStringHelper
+import Ulm.Details qualified
 import Ulm.ReadArtifacts qualified as ReadArtifacts
 import Ulm.Reporting qualified
 
 main :: IO ()
 main = mempty
+
+foreign export javascript "wip"
+  -- current work-in-progress helper to avoid changing `./ulm.cabal` for every export
+  wipJs :: Wasm.JSString -> IO Wasm.JSString
+
+wipJs :: Wasm.JSString -> IO Wasm.JSString
+wipJs jsString =
+  let str = Wasm.fromJSString jsString
+      source = BSU.fromString $ trace "parsing" $ traceShowId str
+   in do
+        fmap encodeJson Ulm.Details.wipJson
 
 foreign export javascript "buildArtifacts" buildArtifacts :: IO ()
 

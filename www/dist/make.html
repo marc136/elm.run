@@ -37,6 +37,9 @@ import Html
 main =
     Html.text "moin"
 </textarea>
+    <h1>TODO load the elm.json file and then try to compile the artifacts,
+        see old log file about the `verifyApp` function.
+    </h1>
     <iframe id="result"></iframe>
     <div class="buttons">
         <button id="compile">Compile code</button>
@@ -84,6 +87,9 @@ main =
             const blob = new Blob([code], { type });
             return URL.createObjectURL(blob);
         }
+
+        const result = await ulm.wip('/elm.json');
+        console.info('Result of ulm.wip', result);
     </script>
 </body>
 

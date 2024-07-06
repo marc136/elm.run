@@ -20,7 +20,7 @@ name:               ulm
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
 --                  | | | +--- code changes with no API change
-version:            0.1.0.0
+version:            0.19.1.0
 
 -- A short (one-line) description of the package.
 -- synopsis:
@@ -51,7 +51,7 @@ extra-doc-files:    CHANGELOG.md
 executable ulm
     ghc-options:
         -Wall -Wunused-packages -no-hs-main -optl-mexec-model=reactor
-        "-optl-Wl,--export=hs_init,--export=buildArtifacts,--export=compile"
+        "-optl-Wl,--export=hs_init,--export=wip,--export=buildArtifacts,--export=compile"
 
     -- .hs or .lhs file containing the Main module.
     main-is:          Ulm.hs
@@ -192,5 +192,19 @@ executable ulm
         Type.UnionFind
 
         -- Files inside ulm-wasm
+        Ulm.Deps.Registry
+        Ulm.Deps.Solver
+        Ulm.Details
         Ulm.ReadArtifacts
         Ulm.Reporting
+        Ulm.Reporting.Error
+        Ulm.Reporting.Exit
+
+        -- wip
+        Elm.Constraint
+        Elm.Licenses
+        Elm.Magnitude
+        Elm.Outline
+        Reporting.Task
+        Stuff
+        ToStringHelper

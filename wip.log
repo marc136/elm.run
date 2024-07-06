@@ -1,2 +1,24 @@
 Another fresh start, see older log files [log2](../mdgriffith_elm-dev/ext-ulm/log.md) and before that [log1]([marc.md](../elm-js-compiler/marc.md) for more info and things I tried.
 
+Now I could try to load an `elm.json` file from wasm (to find out about dependencies), or instead get started on compiling `elm-community/result-extra` into an `artifacts.dat`.
+
+So I'm trying to load an `elm.json` file now from the current directory.
+
+I started inside `builder/src/Elm/Details.hs` with the `load` function, but I don't know if getting the file modification time of `elm.json` will be possible. So I'm trying to skipt that for now.
+I will also skip reading `Stuff.details` from `./elm-stuff/0.19.1/elm.d` which contains info about the last run build (like time), so I can skip ahead to the `generate` fn in `Details.hs` because that will always be executed if something needs to be compiled.
+
+The `generate` fn calls `initEnv`, which uses `Solver.initEnv` and contacts the elm package server (so it won't work directly in WASM).  
+So I'll try to only extract `Outline.read` (which reads the contents of the elm.json file) from there and then run `verifyApp`.
+Maybe I'll need to fake a valid environment that knows about packages (what `builder/src/Deps/Sover` does). But first I will try to ignore that.
+
+From there I only want to use `verifyDependencies` in general, and specificially `build` that creates `artifacts.dat` files.  
+As a first test, I try to build the dependency `elm-community/maybe-extra/5.3.0` which has no indirect dependencies and only one file.
+
+---
+
+I removed everything and started again from the top with `Details.load`.  
+I cloned `builder/src/Elm/Details.hs` to `Ulm/Details.hs` and then copied everything that was necessary.
+
+I skipped running `build` so far by always providing a pre-built `artifacts.dat` for every dependency from my own ELM_HOME dir.
+
+
