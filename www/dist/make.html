@@ -33,13 +33,14 @@
     <textarea id="editor" cols="40" rows="20">
 module Main exposing (main)
 import Html
+import Maybe.Extra
 
 main =
-    Html.text "moin"
+    if Maybe.Extra.isJust Nothing then
+       Html.text "1"
+    else
+        Html.text "moin"
 </textarea>
-    <h1>TODO load the elm.json file and then try to compile the artifacts,
-        see old log file about the `verifyApp` function.
-    </h1>
     <iframe id="result"></iframe>
     <div class="buttons">
         <button id="compile">Compile code</button>

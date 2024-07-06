@@ -28,6 +28,7 @@ import ToStringHelper
 import Ulm.Details qualified
 import Ulm.ReadArtifacts qualified as ReadArtifacts
 import Ulm.Reporting qualified
+import Ulm.Reporting.Exit qualified as Exit
 
 main :: IO ()
 main = mempty
@@ -54,12 +55,58 @@ data Outcome
   = Success ModuleName.Raw String
   | NoMain
   | BadInput ModuleName.Raw Reporting.Error.Error
+  | BuildingDependenciesFailed
 
 foreign export javascript "compile"
   compileWasm :: Wasm.JSString -> IO Wasm.JSString
 
 compileWasm :: Wasm.JSString -> IO Wasm.JSString
 compileWasm jsString =
+  let str = Wasm.fromJSString jsString
+      source = BSU.fromString $ trace "parsing" $ traceShowId str
+   in do
+        trace "wrote sample file" $ Data.ByteString.Builder.writeFile "/wasm-can-write" (Data.ByteString.Builder.stringUtf8 "horst")
+        trace "wrote sample file" $ Data.ByteString.Builder.writeFile "/packages/wasm-can-write" (Data.ByteString.Builder.stringUtf8 "horst")
+        outcome <- compileThis source
+        pure $ encodeJson $ outcomeToJson source outcome
+
+compileThis :: BSU.ByteString -> IO Outcome
+compileThis source =
+  case parse source of
+    Left err ->
+      pure $ BadInput Data.Name._Main (Reporting.Error.BadSyntax err)
+    Right modul@(Src.Module _ _ _ imports _ _ _ _ _) ->
+      let importNames = fmap Src.getImportName imports
+       in do
+            loaded <- Ulm.Details.loadArtifactsForApp "/"
+            case loaded of
+              Left err ->
+                pure BuildingDependenciesFailed
+              Right artifacts ->
+                case Compile.compile Pkg.dummyName (ReadArtifacts.interfaces artifacts) modul of
+                  Left err ->
+                    pure $ BadInput (Src.getName modul) err
+                  Right (Compile.Artifacts canModule _ locals) ->
+                    trace "Compile did not fail" $ case locals of
+                      Opt.LocalGraph Nothing _ _ ->
+                        pure NoMain
+                      Opt.LocalGraph (Just main_) _ _ ->
+                        let mode = Mode.Dev Nothing
+                            home = Can._name canModule
+                            name = ModuleName._module home
+                            mains = Map.singleton home main_
+                            graph = Opt.addLocalGraph locals (ReadArtifacts.objects artifacts)
+                            js :: Data.ByteString.Builder.Builder
+                            js = JS.generate mode graph mains
+                            filename = "generated.js"
+                            filepath = "/tmp/" ++ filename
+                         in do
+                              Data.ByteString.Builder.writeFile filepath js
+                              putStrLn "Success, generated JS code"
+                              pure $ Success name filepath
+
+compileWasmPrebuiltDeps :: Wasm.JSString -> IO Wasm.JSString
+compileWasmPrebuiltDeps jsString =
   let str = Wasm.fromJSString jsString
       source = BSU.fromString $ trace "parsing" $ traceShowId str
    in do

@@ -22,18 +22,15 @@ data ArtifactsForWasm = ArtifactsForWasm
     objects :: Opt.GlobalGraph
   }
 
+instance Show ArtifactsForWasm where
+  show (ArtifactsForWasm _ifaces _objects) = "Artifacts with inferfaces: " ++ show (fmap ModuleName.toChars $ Map.keys _ifaces )
+
+
 getArtifactsForWasm :: IO ArtifactsForWasm
 getArtifactsForWasm =
-  do
-    artifacts <- getArtifacts
-    let interfaces :: [Map.Map ModuleName.Raw I.Interface]
-        interfaces = map artifactToCompileInterface artifacts
-     in pure $
-          ArtifactsForWasm
-            { interfaces = Map.unions interfaces,
-              objects = foldr mergeGlobalObjectsGraphs Opt.empty artifacts
-            }
-
+  getHardcodedArtifacts
+  
+  
 -- copied from builder/src/Elm/Details
 data Artifacts
   = Artifacts
@@ -76,19 +73,28 @@ mergeGlobalObjectsGraphs :: Artifacts -> Opt.GlobalGraph -> Opt.GlobalGraph
 mergeGlobalObjectsGraphs (Artifacts _ objects) acc =
   Opt.addGlobalGraph acc objects
 
-getArtifacts :: IO [Artifacts]
-getArtifacts =
+getHardcodedArtifacts :: IO ArtifactsForWasm
+getHardcodedArtifacts =
+  getArtifacts
+    [ "elm/core/1.0.5",
+      "elm/html/1.0.0",
+      "elm/browser/1.0.2",
+      "elm/json/1.1.3",
+      "elm/virtual-dom/1.0.3"
+    ]
+
+getArtifacts :: [String] -> IO ArtifactsForWasm
+getArtifacts packages =
   do
-    maybeArtifacts <-
-      mapM
-        readArtifacts
-        [ "elm/core/1.0.5",
-          "elm/html/1.0.0",
-          "elm/browser/1.0.2",
-          "elm/json/1.1.3",
-          "elm/virtual-dom/1.0.3"
-        ]
-    return (catMaybes maybeArtifacts)
+    maybeArtifacts <- mapM readArtifacts packages
+    let artifacts = catMaybes maybeArtifacts
+    let interfaces :: [Map.Map ModuleName.Raw I.Interface]
+        interfaces = map artifactToCompileInterface artifacts
+     in pure $
+          ArtifactsForWasm
+            { interfaces = Map.unions interfaces,
+              objects = foldr mergeGlobalObjectsGraphs Opt.empty artifacts
+            }
 
 readArtifacts :: (Binary ArtifactCache) => FilePath -> IO (Maybe Artifacts)
 readArtifacts package =

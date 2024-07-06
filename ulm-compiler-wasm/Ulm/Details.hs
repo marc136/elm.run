@@ -1,4 +1,18 @@
-module Ulm.Details where
+module Ulm.Details
+  ( Details(..)
+  -- , BuildID
+  , ValidOutline(..)
+  , Local(..)
+  , Foreign(..)
+  , load
+  , loadObjects
+  , loadInterfaces
+  -- , verifyInstall
+  --
+  , loadArtifactsForApp
+  , wipJson
+  )
+ where
 
 -- clone of elm-compiler-wasm/builder/src/Elm/Details.hs
 
@@ -48,23 +62,25 @@ import qualified Reporting.Annotation as A
 import qualified Ulm.Reporting.Exit as Exit
 import qualified Reporting.Task as Task
 import qualified Ulm.Paths
+import qualified Ulm.ReadArtifacts
 import ToStringHelper ()
 import Debug.Trace (traceShow, traceShowId)
 
 wipJson :: IO Json.Encode.Value
 wipJson =
-  do  loaded <- load "/"
-      let shown = traceShow "loaded" loaded
-      case traceShowId loaded of
-        Left err ->
-          wip "loaded err"
-        Right ok ->
-          pure $
-            Json.Encode.object
-              [ "wip" ==> Json.Encode.chars "loaded ok"
-              , "ok" ==> Json.Encode.chars (show ok)
-              ]
-
+  do  --  loaded <- load "/"
+      -- loaded <- loadArtifactsForApp "/"
+      -- let shown = traceShow "loaded" loaded
+      -- case traceShowId loaded of
+      --   Left err ->
+      --     wip "loaded err"
+      --   Right ok ->
+      --     pure $
+      --       Json.Encode.object
+      --         [ "wip" ==> Json.Encode.chars "loaded ok"
+      --         , "ok" ==> Json.Encode.chars (show ok)
+      --         ]
+      wip "Details.wipJson"
 
 wip str =
   pure $
@@ -113,6 +129,42 @@ type Interfaces =
 
 
 
+-- LOAD ARTIFACTS
+
+loadArtifactsForApp :: FilePath -> IO (Either Exit.Details Ulm.ReadArtifacts.ArtifactsForWasm)
+loadArtifactsForApp root =
+  -- TODO extract this function into its own module to build a compiler that compiles dependencies and a single file?
+  -- Might be useful to reduce bundle size, and it is sufficient for the elm-lang.org/try editor
+    do
+      env <- initEnv root
+      case env of
+        Left exit ->
+          pure $ Left exit
+
+        Right (env, Outline.Pkg pkg) ->
+          pure $ Left Exit.DetailsNoSolution
+
+        Right (env, Outline.App outline@(Outline.AppOutline _ _ direct indirect _ _)) ->
+          let packages = Map.foldrWithKey (\p v acc -> (Pkg.toChars p ++ "/" ++ V.toChars v) : acc ) [] (Map.union direct indirect)  in
+          do  verified <- Task.run (verifyApp env outline)
+              putStrLn ("direct: " ++ show direct)
+              putStrLn ("indirect: " ++ show indirect)
+              putStrLn ("mapped: " ++ show packages)
+              artifacts <- Ulm.ReadArtifacts.getArtifacts packages
+              pure $ Right artifacts
+
+
+loadObjects :: FilePath -> Details -> IO (MVar (Maybe Opt.GlobalGraph))
+loadObjects root (Details _ _ _ _ _ extras) =
+  fork (File.readBinary (Ulm.Paths.objects root))
+
+
+loadInterfaces :: FilePath -> Details -> IO (MVar (Maybe Interfaces))
+loadInterfaces root (Details _ _ _ _ _ extras) =
+  fork (File.readBinary (Ulm.Paths.interfaces root))
+
+
+
 -- LOAD -- used by Make, Repl, Reactor
 
 
@@ -151,7 +203,7 @@ data Env =
     , _cache :: Ulm.Paths.PackageCache
     , _manager :: () -- Http
     , _connection :: () -- uses Http, always use `Offline` instead
-    , _registry :: Registry.Registry 
+    , _registry :: Registry.Registry
     }
 
 
@@ -164,7 +216,7 @@ initEnv root =
       case (eitherOutline, maybeRegistry) of
         (Left problem, _) ->
           return $ Left $ Exit.DetailsBadOutline problem
-        
+
         (_, Nothing) ->
             return $ Left $ Exit.DetailsNoRegistryCache
 

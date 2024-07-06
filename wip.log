@@ -25,3 +25,17 @@ Now I want to get `build` working. First with the `elm-community/maybe-extra/5.3
 
 For `build` I hardly had to do anything. I copied from the elm compiler and removed a few things, but then I was able to compile maybe-extra.
 
+---
+
+After `Details.load` now works, I want to to reuse parts of that code to replace the hardcoded `Ulm.ReadArtifacts` code.  
+That code might still be useful for a REPL or another editor that does not allow to install custom packages.
+
+But now I want to prepare building all dependencies to artifacts (and returning them) so I can start using that inside welmo (forked https://elm-lang.org/try editor).
+
+I added a `Ulm.Details.loadArtifactsForApp` function so I don't need to write all `artifacts.dat` files first and then load them again, but rather return the artifacts, after compiling the dependencies.
+
+I then used this function inside `Ulm.compileWasm` to no longer need hardcoded dependencies, but rather load them from "disk".
+
+---
+
+With this shortcut in place to build one source file and its dependencies, I want to follow the proper trail of `elm make` to build the dependencies and then one file with a main (and possible additional local files).

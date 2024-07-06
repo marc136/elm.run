@@ -40,10 +40,14 @@ const fs = new PreopenDirectory("/", [
         ["Static.elm", strToFile(`module Static exposing (main)
 
 import Html exposing (Html)
+import Maybe.Extra
 
 main : Html msg
 main =
-    Html.text "main"
+    if Maybe.Extra.isJust Nothing then
+       Html.text "1"
+    else
+        Html.text "moin"
 `
         )],
     ])],
@@ -259,7 +263,8 @@ async function loadArtifacts(pkg: string) {
     // 1. download the elm.json file 
     // 2. load the precomputed `artifacts.dat`
     // 3. create an empty directory `src`
-    const elmJson = await fetch(`https://raw.githubusercontent.com/${pkg}/elm.json`)
+    // const elmJson = await fetch(`https://raw.githubusercontent.com/${pkg}/elm.json`)
+    const elmJson = await fetch(`${packagePath(pkg)}/elm.json`);
 
     const fullpath = `${packagePath(pkg)}/artifacts.dat`;
     const response = await fetch(`./${fullpath}`);
