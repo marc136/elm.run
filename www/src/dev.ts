@@ -19,7 +19,8 @@ const fs = new PreopenDirectory("/", [
         "direct": {
             "elm/browser": "1.0.2",
             "elm/core": "1.0.5",
-            "elm/html": "1.0.0"
+            "elm/html": "1.0.0",
+            "elm-community/maybe-extra": "5.3.0"
         },
         "indirect": {
             "elm/json": "1.1.3",

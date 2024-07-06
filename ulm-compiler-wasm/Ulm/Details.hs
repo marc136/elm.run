@@ -3,7 +3,7 @@ module Ulm.Details where
 -- clone of elm-compiler-wasm/builder/src/Elm/Details.hs
 
 import Control.Concurrent (forkIO)
-import Control.Concurrent.MVar (MVar, newEmptyMVar, newMVar, putMVar, readMVar, takeMVar)
+import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, readMVar, takeMVar)
 import Control.Monad (liftM, liftM2, liftM3)
 import Data.Binary (Binary, get, put, getWord8, putWord8)
 import qualified Data.Either as Either
@@ -15,8 +15,8 @@ import qualified Data.Name as Name
 import qualified Data.NonEmptyList as NE
 import qualified Data.OneOrMore as OneOrMore
 import qualified Data.Set as Set
-import qualified Data.Utf8 as Utf8
-import Data.Word (Word64)
+-- import qualified Data.Utf8 as Utf8
+-- import Data.Word (Word64)
 import qualified System.Directory as Dir
 import System.FilePath ((</>), (<.>))
 
@@ -24,14 +24,14 @@ import qualified AST.Canonical as Can
 import qualified AST.Source as Src
 import qualified AST.Optimized as Opt
 -- import qualified BackgroundWriter as BW
--- import qualified Compile
+import qualified Compile
 import qualified Ulm.Deps.Registry as Registry
 import qualified Ulm.Deps.Solver as Solver
 -- import qualified Deps.Website as Website
 import qualified Elm.Constraint as Con
--- import qualified Elm.Docs as Docs
+import qualified Elm.Docs as Docs
 import qualified Elm.Interface as I
--- import qualified Elm.Kernel as Kernel
+import qualified Elm.Kernel as Kernel
 import qualified Elm.ModuleName as ModuleName
 import qualified Elm.Outline as Outline
 import qualified Elm.Package as Pkg
@@ -39,16 +39,16 @@ import qualified Elm.Version as V
 import qualified File
 -- import qualified Http
 -- import qualified Json.Decode as D
--- import qualified Json.Encode as E
+import qualified Json.Encode as E
 import qualified Json.Encode
 import Json.Encode ((==>))
--- import qualified Parse.Module as Parse
+import qualified Parse.Module as Parse
 -- import qualified Reporting
--- import qualified Reporting.Annotation as A
+import qualified Reporting.Annotation as A
 import qualified Ulm.Reporting.Exit as Exit
 import qualified Reporting.Task as Task
 import qualified Stuff
-import ToStringHelper
+import ToStringHelper ()
 import Debug.Trace (traceShow, traceShowId)
 
 wipJson :: IO Json.Encode.Value
@@ -272,9 +272,8 @@ verifyDependencies env@(Env key scope root cache _ _ _) outline solution directD
       deps <- traverse readMVar mvars
       case sequence deps of
         Left _ ->
-          do  home <- Stuff.getElmHome
-              return $ Left $ Exit.DetailsBadDeps home $
-                Maybe.catMaybes $ Either.lefts $ Map.elems deps
+          return $ Left $ Exit.DetailsBadDeps Stuff.packageCacheDir $
+              Maybe.catMaybes $ Either.lefts $ Map.elems deps
 
         Right artifacts ->
           let
@@ -323,6 +322,8 @@ data Artifacts =
     , _objects :: Opt.GlobalGraph
     }
 
+instance Show Artifacts where
+  show (Artifacts _ifaces _objects) = "Artifacts with inferfaces: " ++ show (Map.keys _ifaces)
 
 type Dep =
   Either (Maybe Exit.DetailsBadDep) Artifacts
@@ -371,7 +372,319 @@ type Fingerprint =
 
 build :: Stuff.PackageCache -> MVar (Map.Map Pkg.Name (MVar Dep)) -> Pkg.Name -> Solver.Details -> Fingerprint -> Set.Set Fingerprint -> IO Dep
 build cache depsMVar pkg (Solver.Details vsn _) f fs =
-  pure (Left (Just Exit.BD_MARC_TODO_BUILD))
+  do  eitherOutline <- Outline.read (Stuff.package cache pkg vsn)
+      case eitherOutline of
+        Left _ ->
+          do  --Reporting.report key Reporting.DBroken
+              return $ Left $ Just $ Exit.BD_BadBuild pkg vsn f
+
+        Right (Outline.App _) ->
+          do  --Reporting.report key Reporting.DBroken
+              return $ Left $ Just $ Exit.BD_BadBuild pkg vsn f
+
+        Right (Outline.Pkg (Outline.PkgOutline _ _ _ _ exposed deps _ _)) ->
+          do  allDeps <- readMVar depsMVar
+              -- because `deps` only contains a range of versions, we need to find a valid version number
+              directDeps <- traverse readMVar (Map.intersection allDeps deps)
+              putStrLn ("directDeps: " ++ show directDeps)
+              case sequence directDeps of
+                Left _ ->
+                  do  --Reporting.report key Reporting.DBroken
+                      return $ Left $ Nothing
+
+                Right directArtifacts ->
+                  do  let src = Stuff.package cache pkg   vsn </> "src"
+                      let foreignDeps = gatherForeignInterfaces directArtifacts
+                      let exposedDict = Map.fromKeys (\_ -> ()) (Outline.flattenExposed exposed)
+                      docsStatus <- getDocsStatus cache pkg vsn
+                      mvar <- newEmptyMVar
+                      mvars <- Map.traverseWithKey (const . fork . crawlModule foreignDeps mvar pkg src docsStatus) exposedDict
+                      putMVar mvar mvars
+                      mapM_ readMVar mvars
+                      maybeStatuses <- traverse readMVar =<< readMVar mvar
+                      case sequence maybeStatuses of
+                        Nothing ->
+                          do  --Reporting.report key Reporting.DBroken
+                              return $ Left $ Just $ Exit.BD_BadBuild pkg vsn f
+
+                        Just statuses ->
+                          do  rmvar <- newEmptyMVar
+                              rmvars <- traverse (fork . compile pkg rmvar) statuses
+                              putMVar rmvar rmvars
+                              maybeResults <- traverse readMVar rmvars
+                              case sequence maybeResults of
+                                Nothing ->
+                                  do  --Reporting.report key Reporting.DBroken
+                                      return $ Left $ Just $ Exit.BD_BadBuild pkg vsn f
+
+                                Just results ->
+                                  let
+                                    path = Stuff.package cache pkg vsn </> "artifacts.dat"
+                                    ifaces = gatherInterfaces exposedDict results
+                                    objects = gatherObjects results
+                                    artifacts = Artifacts ifaces objects
+                                    fingerprints = Set.insert f fs
+                                  in
+                                  do  writeDocs cache pkg vsn docsStatus results
+                                      File.writeBinary path (ArtifactCache fingerprints artifacts)
+                                      --Reporting.report key Reporting.DBuilt
+                                      return (Right artifacts)
+
+
+
+-- GATHER
+
+
+gatherObjects :: Map.Map ModuleName.Raw Result -> Opt.GlobalGraph
+gatherObjects results =
+  Map.foldrWithKey addLocalGraph Opt.empty results
+
+
+addLocalGraph :: ModuleName.Raw -> Result -> Opt.GlobalGraph -> Opt.GlobalGraph
+addLocalGraph name status graph =
+  case status of
+    RLocal _ objs _ -> Opt.addLocalGraph objs graph
+    RForeign _      -> graph
+    RKernelLocal cs -> Opt.addKernel (Name.getKernel name) cs graph
+    RKernelForeign  -> graph
+
+
+gatherInterfaces :: Map.Map ModuleName.Raw () -> Map.Map ModuleName.Raw Result -> Map.Map ModuleName.Raw I.DependencyInterface
+gatherInterfaces exposed artifacts =
+  let
+    onLeft  = Map.mapMissing (error "compiler bug manifesting in Elm.Details.gatherInterfaces")
+    onRight = Map.mapMaybeMissing     (\_    iface -> toLocalInterface I.private iface)
+    onBoth  = Map.zipWithMaybeMatched (\_ () iface -> toLocalInterface I.public  iface)
+  in
+  Map.merge onLeft onRight onBoth exposed artifacts
+
+
+toLocalInterface :: (I.Interface -> a) -> Result -> Maybe a
+toLocalInterface func result =
+  case result of
+    RLocal iface _ _ -> Just (func iface)
+    RForeign _       -> Nothing
+    RKernelLocal _   -> Nothing
+    RKernelForeign   -> Nothing
+
+
+
+-- GATHER FOREIGN INTERFACES
+
+
+data ForeignInterface
+  = ForeignAmbiguous
+  | ForeignSpecific I.Interface
+
+
+gatherForeignInterfaces :: Map.Map Pkg.Name Artifacts -> Map.Map ModuleName.Raw ForeignInterface
+gatherForeignInterfaces directArtifacts =
+    Map.map (OneOrMore.destruct finalize) $
+      Map.foldrWithKey gather Map.empty directArtifacts
+  where
+    finalize :: I.Interface -> [I.Interface] -> ForeignInterface
+    finalize i is =
+      case is of
+        [] -> ForeignSpecific i
+        _:_ -> ForeignAmbiguous
+
+    gather :: Pkg.Name -> Artifacts -> Map.Map ModuleName.Raw (OneOrMore.OneOrMore I.Interface) -> Map.Map ModuleName.Raw (OneOrMore.OneOrMore I.Interface)
+    gather _ (Artifacts ifaces _) buckets =
+      Map.unionWith OneOrMore.more buckets (Map.mapMaybe isPublic ifaces)
+
+    isPublic :: I.DependencyInterface -> Maybe (OneOrMore.OneOrMore I.Interface)
+    isPublic di =
+      case di of
+        I.Public iface  -> Just (OneOrMore.one iface)
+        I.Private _ _ _ -> Nothing
+
+
+
+-- CRAWL
+
+
+type StatusDict =
+  Map.Map ModuleName.Raw (MVar (Maybe Status))
+
+
+data Status
+  = SLocal DocsStatus (Map.Map ModuleName.Raw ()) Src.Module
+  | SForeign I.Interface
+  | SKernelLocal [Kernel.Chunk]
+  | SKernelForeign
+
+
+crawlModule :: Map.Map ModuleName.Raw ForeignInterface -> MVar StatusDict -> Pkg.Name -> FilePath -> DocsStatus -> ModuleName.Raw -> IO (Maybe Status)
+crawlModule foreignDeps mvar pkg src docsStatus name =
+  do  let path = src </> ModuleName.toFilePath name <.> "elm"
+      exists <- File.exists path
+      case Map.lookup name foreignDeps of
+        Just ForeignAmbiguous ->
+          return Nothing
+
+        Just (ForeignSpecific iface) ->
+          if exists
+          then return Nothing
+          else return (Just (SForeign iface))
+
+        Nothing ->
+          if exists then
+            crawlFile foreignDeps mvar pkg src docsStatus name path
+
+          else if Pkg.isKernel pkg && Name.isKernel name then
+            crawlKernel foreignDeps mvar pkg src name
+
+          else
+            return Nothing
+
+
+crawlFile :: Map.Map ModuleName.Raw ForeignInterface -> MVar StatusDict -> Pkg.Name -> FilePath -> DocsStatus -> ModuleName.Raw -> FilePath -> IO (Maybe Status)
+crawlFile foreignDeps mvar pkg src docsStatus expectedName path =
+  do  bytes <- File.readUtf8 path
+      case Parse.fromByteString (Parse.Package pkg) bytes of
+        Right modul@(Src.Module (Just (A.At _ actualName)) _ _ imports _ _ _ _ _) | expectedName == actualName ->
+          do  deps <- crawlImports foreignDeps mvar pkg src imports
+              return (Just (SLocal docsStatus deps modul))
+
+        _ ->
+          return Nothing
+
+
+crawlImports :: Map.Map ModuleName.Raw ForeignInterface -> MVar StatusDict -> Pkg.Name -> FilePath -> [Src.Import] -> IO (Map.Map ModuleName.Raw ())
+crawlImports foreignDeps mvar pkg src imports =
+  do  statusDict <- takeMVar mvar
+      let deps = Map.fromList (map (\i -> (Src.getImportName i, ())) imports)
+      let news = Map.difference deps statusDict
+      mvars <- Map.traverseWithKey (const . fork . crawlModule foreignDeps mvar pkg src DocsNotNeeded) news
+      putMVar mvar (Map.union mvars statusDict)
+      mapM_ readMVar mvars
+      return deps
+
+
+crawlKernel :: Map.Map ModuleName.Raw ForeignInterface -> MVar StatusDict -> Pkg.Name -> FilePath -> ModuleName.Raw -> IO (Maybe Status)
+crawlKernel foreignDeps mvar pkg src name =
+  do  let path = src </> ModuleName.toFilePath name <.> "js"
+      exists <- File.exists path
+      if exists
+        then
+          do  bytes <- File.readUtf8 path
+              case Kernel.fromByteString pkg (Map.mapMaybe getDepHome foreignDeps) bytes of
+                Nothing ->
+                  return Nothing
+
+                Just (Kernel.Content imports chunks) ->
+                  do  _ <- crawlImports foreignDeps mvar pkg src imports
+                      return (Just (SKernelLocal chunks))
+        else
+          return (Just SKernelForeign)
+
+
+getDepHome :: ForeignInterface -> Maybe Pkg.Name
+getDepHome fi =
+  case fi of
+    ForeignSpecific (I.Interface pkg _ _ _ _) -> Just pkg
+    ForeignAmbiguous                          -> Nothing
+
+
+
+-- COMPILE
+
+
+data Result
+  = RLocal !I.Interface !Opt.LocalGraph (Maybe Docs.Module)
+  | RForeign I.Interface
+  | RKernelLocal [Kernel.Chunk]
+  | RKernelForeign
+
+
+compile :: Pkg.Name -> MVar (Map.Map ModuleName.Raw (MVar (Maybe Result))) -> Status -> IO (Maybe Result)
+compile pkg mvar status =
+  case status of
+    SLocal docsStatus deps modul ->
+      do  resultsDict <- readMVar mvar
+          maybeResults <- traverse readMVar (Map.intersection resultsDict deps)
+          case sequence maybeResults of
+            Nothing ->
+              return Nothing
+
+            Just results ->
+              case Compile.compile pkg (Map.mapMaybe getInterface results) modul of
+                Left _ ->
+                  return Nothing
+
+                Right (Compile.Artifacts canonical annotations objects) ->
+                  let
+                    ifaces = I.fromModule pkg canonical annotations
+                    docs = makeDocs docsStatus canonical
+                  in
+                  return (Just (RLocal ifaces objects docs))
+
+    SForeign iface ->
+      return (Just (RForeign iface))
+
+    SKernelLocal chunks ->
+      return (Just (RKernelLocal chunks))
+
+    SKernelForeign ->
+      return (Just RKernelForeign)
+
+
+getInterface :: Result -> Maybe I.Interface
+getInterface result =
+  case result of
+    RLocal iface _ _ -> Just iface
+    RForeign iface   -> Just iface
+    RKernelLocal _   -> Nothing
+    RKernelForeign   -> Nothing
+
+
+
+-- MAKE DOCS
+
+
+data DocsStatus
+  = DocsNeeded
+  | DocsNotNeeded
+
+
+getDocsStatus :: Stuff.PackageCache -> Pkg.Name -> V.Version -> IO DocsStatus
+getDocsStatus cache pkg vsn =
+  do  exists <- File.exists (Stuff.package cache pkg vsn </> "docs.json")
+      if exists
+        then return DocsNotNeeded
+        else return DocsNeeded
+
+
+makeDocs :: DocsStatus -> Can.Module -> Maybe Docs.Module
+makeDocs status modul =
+  case status of
+    DocsNeeded ->
+      case Docs.fromModule modul of
+        Right docs -> Just docs
+        Left _     -> Nothing
+
+    DocsNotNeeded ->
+      Nothing
+
+
+writeDocs :: Stuff.PackageCache -> Pkg.Name -> V.Version -> DocsStatus -> Map.Map ModuleName.Raw Result -> IO ()
+writeDocs cache pkg vsn status results =
+  case status of
+    DocsNeeded ->
+      E.writeUgly (Stuff.package cache pkg vsn </> "docs.json") $
+        Docs.encode $ Map.mapMaybe toDocs results
+
+    DocsNotNeeded ->
+      return ()
+
+
+toDocs :: Result -> Maybe Docs.Module
+toDocs result =
+  case result of
+    RLocal _ _ docs -> docs
+    RForeign _      -> Nothing
+    RKernelLocal _  -> Nothing
+    RKernelForeign  -> Nothing
 
 
 

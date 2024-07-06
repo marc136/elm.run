@@ -21,4 +21,7 @@ I cloned `builder/src/Elm/Details.hs` to `Ulm/Details.hs` and then copied everyt
 
 I skipped running `build` so far by always providing a pre-built `artifacts.dat` for every dependency from my own ELM_HOME dir.
 
+Now I want to get `build` working. First with the `elm-community/maybe-extra/5.3.0` package.
+
+For `build` I hardly had to do anything. I copied from the elm compiler and removed a few things, but then I was able to compile maybe-extra.
 
