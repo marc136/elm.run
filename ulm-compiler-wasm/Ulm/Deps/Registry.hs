@@ -15,14 +15,14 @@ where
 import Prelude hiding (read)
 import Control.Monad (liftM2)
 import Data.Binary (Binary, get, put)
-import qualified Data.List as List
+-- import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 
 import qualified Elm.Package as Pkg
 import qualified Elm.Version as V
 import qualified File
-import qualified Ulm.Reporting.Exit as Exit
-import qualified Stuff
+-- import qualified Ulm.Reporting.Exit as Exit
+import qualified Ulm.Paths
 
 
 
@@ -49,9 +49,9 @@ data KnownVersions =
 -- READ
 
 
-read :: Stuff.PackageCache -> IO (Maybe Registry)
+read :: Ulm.Paths.PackageCache -> IO (Maybe Registry)
 read cache =
-  File.readBinary (Stuff.registry cache)
+  File.readBinary (Ulm.Paths.registry cache)
 
 
 

@@ -32,7 +32,7 @@ import qualified File
 -- import qualified Http
 import qualified Json.Decode as D
 import qualified Ulm.Reporting.Exit as Exit
-import qualified Stuff
+import qualified Ulm.Paths
 import Debug.Trace (traceShow, traceShowId, traceM, trace)
 import ToStringHelper
 
@@ -53,7 +53,7 @@ newtype Solver a =
 
 data State =
   State
-    { _cache :: Stuff.PackageCache
+    { _cache :: Ulm.Paths.PackageCache
     , _registry :: Registry.Registry
     , _constraints :: Map.Map (Pkg.Name, V.Version) Constraints
     }
@@ -89,7 +89,7 @@ data Details =
   Details V.Version (Map.Map Pkg.Name C.Constraint)
 
 
-verify :: Stuff.PackageCache -> Registry.Registry -> Map.Map Pkg.Name C.Constraint -> IO (Result (Map.Map Pkg.Name Details))
+verify :: Ulm.Paths.PackageCache -> Registry.Registry -> Map.Map Pkg.Name C.Constraint -> IO (Result (Map.Map Pkg.Name Details))
 verify cache registry constraints =
   case try (traceShow ("verify constraints: " ++ show constraints) constraints) of
     Solver solver ->
@@ -215,7 +215,7 @@ getConstraints pkg vsn =
 
           Nothing ->
             do  let toNewState cs = State cache registry (Map.insert key cs cDict)
-                let home = Stuff.package cache pkg vsn
+                let home = Ulm.Paths.package cache pkg vsn
                 let path = home </> "elm.json"
                 -- putStrLn ("trying to load " ++ path)
                 outlineExists <- File.exists path
@@ -224,7 +224,7 @@ getConstraints pkg vsn =
                     do  bytes <- File.readUtf8 path
                         case D.fromByteString constraintsDecoder bytes of
                           Right cs ->
-                            do  srcExists <- Dir.doesDirectoryExist (Stuff.package cache pkg vsn </> "src")
+                            do  srcExists <- Dir.doesDirectoryExist (Ulm.Paths.package cache pkg vsn </> "src")
                                 if srcExists
                                   then ok (toNewState cs) cs back
                                   else back state

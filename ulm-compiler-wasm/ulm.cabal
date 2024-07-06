@@ -195,6 +195,7 @@ executable ulm
         Ulm.Deps.Registry
         Ulm.Deps.Solver
         Ulm.Details
+        Ulm.Paths
         Ulm.ReadArtifacts
         Ulm.Reporting
         Ulm.Reporting.Error
@@ -207,5 +208,4 @@ executable ulm
         Elm.Magnitude
         Elm.Outline
         Reporting.Task
-        Stuff
         ToStringHelper

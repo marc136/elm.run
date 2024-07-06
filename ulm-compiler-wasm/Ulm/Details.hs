@@ -47,7 +47,7 @@ import qualified Parse.Module as Parse
 import qualified Reporting.Annotation as A
 import qualified Ulm.Reporting.Exit as Exit
 import qualified Reporting.Task as Task
-import qualified Stuff
+import qualified Ulm.Paths
 import ToStringHelper ()
 import Debug.Trace (traceShow, traceShowId)
 
@@ -148,7 +148,7 @@ data Env =
     { _key :: () -- from Reporting, used to track tasks for Reporting.report
     , _scope :: () -- BW.Scope -- not sure if I will need this
     , _root :: FilePath
-    , _cache :: Stuff.PackageCache
+    , _cache :: Ulm.Paths.PackageCache
     , _manager :: () -- Http
     , _connection :: () -- uses Http, always use `Offline` instead
     , _registry :: Registry.Registry 
@@ -158,7 +158,7 @@ data Env =
 initEnv :: FilePath -> IO (Either Exit.Details (Env, Outline.Outline))
 initEnv root =
   -- maybe I need to clone Solver.initEnv
-  do  cache <- Stuff.getPackageCache
+  do  cache <- Ulm.Paths.getPackageCache
       maybeRegistry <- Registry.read cache
       eitherOutline <- Outline.read root
       case (eitherOutline, maybeRegistry) of
@@ -272,7 +272,7 @@ verifyDependencies env@(Env key scope root cache _ _ _) outline solution directD
       deps <- traverse readMVar mvars
       case sequence deps of
         Left _ ->
-          return $ Left $ Exit.DetailsBadDeps Stuff.packageCacheDir $
+          return $ Left $ Exit.DetailsBadDeps Ulm.Paths.packageCacheDir $
               Maybe.catMaybes $ Either.lefts $ Map.elems deps
 
         Right artifacts ->
@@ -282,9 +282,9 @@ verifyDependencies env@(Env key scope root cache _ _ _) outline solution directD
             foreigns = Map.map (OneOrMore.destruct Foreign) $ Map.foldrWithKey gatherForeigns Map.empty $ Map.intersection artifacts directDeps
             details = Details () outline () Map.empty foreigns ()
           in
-          do  File.writeBinary (Stuff.objects    root) objs
-              File.writeBinary (Stuff.interfaces root) ifaces
-              File.writeBinary (Stuff.details    root) details
+          do  File.writeBinary (Ulm.Paths.objects    root) objs
+              File.writeBinary (Ulm.Paths.interfaces root) ifaces
+              File.writeBinary (Ulm.Paths.details    root) details
               return (Right details)
 
 
@@ -332,12 +332,12 @@ type Dep =
 verifyDep :: Env -> MVar (Map.Map Pkg.Name (MVar Dep)) -> Map.Map Pkg.Name Solver.Details -> Pkg.Name -> Solver.Details -> IO Dep
 verifyDep (Env key _ _ cache manager _ _) depsMVar solution pkg details@(Solver.Details vsn directDeps) =
   do  let fingerprint = Map.intersectionWith (\(Solver.Details v _) _ -> v) solution directDeps
-      let dir = Stuff.package cache pkg vsn </> "src"
+      let dir = Ulm.Paths.package cache pkg vsn </> "src"
       exists <- Dir.doesDirectoryExist dir
       if exists
         then
           do  --Reporting.report key Reporting.DCached
-              maybeCache <- File.readBinary (Stuff.package cache pkg vsn </> "artifacts.dat")
+              maybeCache <- File.readBinary (Ulm.Paths.package cache pkg vsn </> "artifacts.dat")
               case maybeCache of
                 Nothing ->
                   build cache depsMVar pkg details fingerprint Set.empty
@@ -370,9 +370,9 @@ type Fingerprint =
 -- BUILD
 
 
-build :: Stuff.PackageCache -> MVar (Map.Map Pkg.Name (MVar Dep)) -> Pkg.Name -> Solver.Details -> Fingerprint -> Set.Set Fingerprint -> IO Dep
+build :: Ulm.Paths.PackageCache -> MVar (Map.Map Pkg.Name (MVar Dep)) -> Pkg.Name -> Solver.Details -> Fingerprint -> Set.Set Fingerprint -> IO Dep
 build cache depsMVar pkg (Solver.Details vsn _) f fs =
-  do  eitherOutline <- Outline.read (Stuff.package cache pkg vsn)
+  do  eitherOutline <- Outline.read (Ulm.Paths.package cache pkg vsn)
       case eitherOutline of
         Left _ ->
           do  --Reporting.report key Reporting.DBroken
@@ -393,7 +393,7 @@ build cache depsMVar pkg (Solver.Details vsn _) f fs =
                       return $ Left $ Nothing
 
                 Right directArtifacts ->
-                  do  let src = Stuff.package cache pkg   vsn </> "src"
+                  do  let src = Ulm.Paths.package cache pkg   vsn </> "src"
                       let foreignDeps = gatherForeignInterfaces directArtifacts
                       let exposedDict = Map.fromKeys (\_ -> ()) (Outline.flattenExposed exposed)
                       docsStatus <- getDocsStatus cache pkg vsn
@@ -419,7 +419,7 @@ build cache depsMVar pkg (Solver.Details vsn _) f fs =
 
                                 Just results ->
                                   let
-                                    path = Stuff.package cache pkg vsn </> "artifacts.dat"
+                                    path = Ulm.Paths.package cache pkg vsn </> "artifacts.dat"
                                     ifaces = gatherInterfaces exposedDict results
                                     objects = gatherObjects results
                                     artifacts = Artifacts ifaces objects
@@ -647,9 +647,9 @@ data DocsStatus
   | DocsNotNeeded
 
 
-getDocsStatus :: Stuff.PackageCache -> Pkg.Name -> V.Version -> IO DocsStatus
+getDocsStatus :: Ulm.Paths.PackageCache -> Pkg.Name -> V.Version -> IO DocsStatus
 getDocsStatus cache pkg vsn =
-  do  exists <- File.exists (Stuff.package cache pkg vsn </> "docs.json")
+  do  exists <- File.exists (Ulm.Paths.package cache pkg vsn </> "docs.json")
       if exists
         then return DocsNotNeeded
         else return DocsNeeded
@@ -667,11 +667,11 @@ makeDocs status modul =
       Nothing
 
 
-writeDocs :: Stuff.PackageCache -> Pkg.Name -> V.Version -> DocsStatus -> Map.Map ModuleName.Raw Result -> IO ()
+writeDocs :: Ulm.Paths.PackageCache -> Pkg.Name -> V.Version -> DocsStatus -> Map.Map ModuleName.Raw Result -> IO ()
 writeDocs cache pkg vsn status results =
   case status of
     DocsNeeded ->
-      E.writeUgly (Stuff.package cache pkg vsn </> "docs.json") $
+      E.writeUgly (Ulm.Paths.package cache pkg vsn </> "docs.json") $
         Docs.encode $ Map.mapMaybe toDocs results
 
     DocsNotNeeded ->
