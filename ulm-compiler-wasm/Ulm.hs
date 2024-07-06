@@ -48,7 +48,7 @@ foreign export javascript "buildArtifacts" buildArtifacts :: IO ()
 buildArtifacts = putStrLn "TODO buildArtifacts"
 
 -- The main compilation logic is the same as
--- `../worker/src/Endpoint/Compile.hs``
+-- `../worker/src/Endpoint/Compile.hs`
 
 data Outcome
   = Success ModuleName.Raw String
@@ -65,16 +65,17 @@ compileWasm jsString =
    in do
         trace "wrote sample file" $ Data.ByteString.Builder.writeFile "/wasm-can-write" (Data.ByteString.Builder.stringUtf8 "horst")
         trace "wrote sample file" $ Data.ByteString.Builder.writeFile "/packages/wasm-can-write" (Data.ByteString.Builder.stringUtf8 "horst")
-        outcome <- compile source
+        outcome <- compileWithPrebuiltDependencies source
         pure $ encodeJson $ outcomeToJson source outcome
 
-compile :: BSU.ByteString -> IO Outcome
-compile source =
+-- This might be useful for a repl. It cannot compile dependencies, but the file size is smaller.
+-- For a repl that might be more important
+compileWithPrebuiltDependencies :: BSU.ByteString -> IO Outcome
+compileWithPrebuiltDependencies source =
   case parse source of
     Left err ->
       pure $ BadInput Data.Name._Main (Reporting.Error.BadSyntax err)
     Right modul@(Src.Module _ _ _ imports _ _ _ _ _) ->
-      -- TODO add a way to verify imports
       let importNames = fmap Src.getImportName imports
        in do
             artifacts <- ReadArtifacts.getArtifactsForWasm
