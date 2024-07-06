@@ -1,23 +1,27 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE MultiWayIf, OverloadedStrings #-}
 module Ulm.Reporting.Exit
-  ( Solver(..)
+  ( Make(..)
+  --
+  , Solver(..)
   , Outline (..)
   , OutlineProblem(..)
   , Details(..)
   , DetailsBadDep(..)
   , PackageProblem(..)
   -- , RegistryProblem(..)
-  -- , BuildProblem(..)
-  -- , BuildProjectProblem(..)
+  , BuildProblem(..)
+  , BuildProjectProblem(..)
   -- , DocsProblem(..)
-  -- , Generate(..)
+  , Generate(..)
   --
+  -- , toString
+  -- , toStderr
+  -- , toJson
   )
-where
+  where
 
 -- extracted from /elm-compiler-wasm/builder/src/Reporting/Exit.hs
-
 
 
 import qualified Data.ByteString as BS
@@ -157,6 +161,7 @@ data Make
 data BuildProblem
   = BuildBadModules FilePath Error.Module [Error.Module]
   | BuildProjectProblem BuildProjectProblem
+  | BuildProblem_TODO
 
 
 data BuildProjectProblem
@@ -178,7 +183,7 @@ data BuildProjectProblem
 data Generate
   = GenerateCannotLoadArtifacts
   | GenerateCannotOptimizeDebugValues ModuleName.Raw [ModuleName.Raw]
-
+  | Generate_TODO
 
 
 -- REPL

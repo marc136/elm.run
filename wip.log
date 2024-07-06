@@ -39,3 +39,5 @@ I then used this function inside `Ulm.compileWasm` to no longer need hardcoded d
 ---
 
 With this shortcut in place to build one source file and its dependencies, I want to follow the proper trail of `elm make` to build the dependencies and then one file with a main (and possible additional local files).
+
+Starting with `runHelp` in elm-compiler-wasm/terminal/src/Make.hs I can first use `Details.load` to ensure that all dependencies are built and loaded, then skip ahead to `buildPaths` and then pick the path to compile a js file (which contains at least one `main` function).

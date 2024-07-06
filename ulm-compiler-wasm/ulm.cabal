@@ -192,9 +192,12 @@ executable ulm
         Type.UnionFind
 
         -- Files inside ulm-wasm
+        Ulm.Build
         Ulm.Deps.Registry
         Ulm.Deps.Solver
         Ulm.Details
+        Ulm.Generate
+        Ulm.Make
         Ulm.Paths
         Ulm.ReadArtifacts
         Ulm.Reporting

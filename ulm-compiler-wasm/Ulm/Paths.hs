@@ -3,8 +3,8 @@ module Ulm.Paths
     interfaces,
     objects,
     -- prepublishDir,
-    -- elmi,
-    -- elmo,
+    elmi,
+    elmo,
     -- temp,
     -- findRoot,
     -- , withRootLock
@@ -21,7 +21,7 @@ where
 
 -- copy of elm-compiler-wasm/builder/src/Stuff.hs
 
--- import Elm.ModuleName qualified as ModuleName
+import Elm.ModuleName qualified as ModuleName
 import Elm.Package qualified as Pkg
 import Elm.Version qualified as V
 -- import System.Directory qualified as Dir
@@ -52,6 +52,18 @@ compilerVersion =
   V.toChars V.compiler
 
 -- ELMI and ELMO
+
+elmi :: FilePath -> ModuleName.Raw -> FilePath
+elmi root name =
+  toArtifactPath root name "elmi"
+
+elmo :: FilePath -> ModuleName.Raw -> FilePath
+elmo root name =
+  toArtifactPath root name "elmo"
+
+toArtifactPath :: FilePath -> ModuleName.Raw -> String -> FilePath
+toArtifactPath root name ext =
+  stuff root </> ModuleName.toHyphenPath name <.> ext
 
 -- ROOT
 
