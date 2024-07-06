@@ -18,6 +18,7 @@ tar -czvf "$DIR/ulm.tar.gz" "$DIR/ulm.wasm"
 $(wasm32-wasi-ghc --print-libdir)/post-link.mjs -i "$DIR/ulm.wasm" -o "$DIR/ulm.js"
 
 echo "NOTE: Disabled wasm compression"
+du -h ../www/dist/ulm.{wasm,tar.gz}
 exit 0
 
 # "-Oz" -> optimize for file size
