@@ -45,7 +45,7 @@ main =
     </div>
     <script type="module">
         window.marc = {};
-        import { init, wrapBufferInHtml, wrapInHtml, installPkg, printFs } from './example2.mjs';
+        import { init, wrapBufferInHtml, installPkg, printFs, readFile } from './example2.mjs';
         const { wasm: ulm, tmpDir, fs, pkgDir } = await init();
         console.log({ ulm, tmpDir, fs, pkgDir });
         window.marc = { ulm, tmpDir, fs, pkgDir, printFs }
@@ -59,8 +59,8 @@ main =
                 console.info('Compilation result:', result);
 
                 if (result.type === 'success' && result.file) {
-                    const file = tmpDir.dir.contents.get(result.file);
-                    const code = wrapBufferInHtml(file.data, 'Main');
+                    const data = readFile(result.file);
+                    const code = wrapBufferInHtml(data, 'Main');
                     frame.src = getBlobURL(code, 'text/html');
                 } else {
                     frame.src = getBlobURL(`<h1>Error:</h1><pre>${JSON.stringify(result, undefined, 2)}</pre>`, 'text/html');

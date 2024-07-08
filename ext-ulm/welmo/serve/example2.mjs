@@ -68,14 +68,29 @@ export async function init() {
         console.info('Compilation result:', result);
 
         if (result.type === 'success' && result.file && result.name) {
-            const file = fs.dir.contents.get('tmp').contents.get(result.file);
-            return wrapBufferInHtml(file.data, result.name);
+            const data = readFile(result.file)
+            return wrapBufferInHtml(data, result.name);
         } else {
             throw result
         }
     }
 
     return { wasm, compileHtml, fs, pkgDir };
+}
+
+/**
+ * @param {string} filepath
+ * @returns {Uint8Array} file content
+ */
+export function readFile(filepath) {
+    let node = fs.dir
+    const paths = filepath.split('/');
+    for (const p of paths) {
+        if (p.trim() !== '') {
+            node = node.contents.get(p)
+        }
+    }
+    return node.data
 }
 
 export function printFs() {
@@ -98,7 +113,6 @@ export function printFs() {
     //  -> has a `prestat_name: string` and a `dir: Directory`
     console.log(fs.prestat_name, withIndent(1, fs.dir))
 }
-
 
 /**
  * @param {string} name 
