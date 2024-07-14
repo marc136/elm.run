@@ -1,6 +1,6 @@
 {
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "0.3.0",
-    "@zip.js/zip.js": "2.7.45"
+    "nanotar": "0.1.1"
   }
 }

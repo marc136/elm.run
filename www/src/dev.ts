@@ -1,6 +1,5 @@
 import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory, Directory } from "@bjorn3/browser_wasi_shim";
-import * as zip from "@zip.js/zip.js";
-
+import { parseTarGzip } from "nanotar";
 
 function strToFile(str) {
     return new File(new TextEncoder("utf-8").encode(str))
