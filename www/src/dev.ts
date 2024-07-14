@@ -59,6 +59,7 @@ export async function init() {
     const wasm = await loadCompiler()
 
     await setupEnvironmentv1()
+    await elmInit()
 
     async function compileHtml(source) {
         const raw = await wasm.compile(source)
@@ -122,6 +123,83 @@ async function loadRegistry() {
     // -> See `fetch` in elm-compiler-wasm/builder/src/Deps/Registry.hs
     const allpackages = await fetch('/elm-home/0.19.1/packages/registry.dat')
     pkgDir.contents.set('registry.dat', new File(await allpackages.arrayBuffer()))
+}
+
+
+/*
+This function is similar to what happens when running `elm init`.
+It creates the same elm.json file (as of 2024-07-13) and will download the source code of those packages.
+
+The only difference is here, that it loads one zip file instead of many.
+
+```json
+{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "elm/browser": "1.0.2",
+            "elm/core": "1.0.5",
+            "elm/html": "1.0.0",
+        },
+        "indirect": {
+            "elm/json": "1.1.3",
+            "elm/time": "1.0.0",
+            "elm/url": "1.0.0",
+            "elm/virtual-dom": "1.0.3"
+        }
+    },
+    "test-dependencies": {
+        "direct": {},
+        "indirect": {}
+    }
+}
+```
+
+*/
+async function elmInit() {
+    const result = await fetch('/elm-init.tar.gz')
+    const tar = await parseTarGzip(await result.arrayBuffer())
+    console.log('tar', tar)
+
+    // I will build one graph here because the fs is empty when loading this file.
+    // When installing packages later, I will need to create every directory as needed.
+
+    // This array will be merged later into the root fs
+    const root = []
+    for (const file of tar) {
+        let fullpath = file.name
+        while (fullpath.startsWith('/')) fullpath = fullpath.slice(1)
+        while (fullpath.endsWith('/')) fullpath = fullpath.slice(0, -1)
+        const paths = fullpath.split('/')
+        const name = paths[paths.length - 1]
+        let node = fs.dir
+        // ensure parent directories exist
+        for (const segment of paths.slice(0, -1)) {
+            let next = node.contents.get(segment) as Directory
+            if (!next) {
+                next = new Directory([])
+                node.contents.set(segment, next)
+            }
+            node = next
+        }
+        // create file or last directory
+        switch (file.type) {
+            case 'file':
+                writeFile(node, name, file.data ?? new ArrayBuffer(0))
+                break
+            case 'directory':
+                if (!node.contents.has(name)) {
+                    node.contents.set(name, new Directory([]))
+                }
+                break
+            default:
+                console.error(`Cannot handle file.type='${file.type}' and ignoring it`, file)
+        }
+    }
 }
 
 /**
