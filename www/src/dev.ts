@@ -58,6 +58,26 @@ console.log('fs', fs)
 
 export async function init() {
     const wasm = await loadCompiler()
+
+    await setupEnvironmentv1()
+
+    async function compileHtml(source) {
+        const raw = await wasm.compile(source)
+        const result = JSON.parse(raw);
+        console.info('Compilation result:', result);
+
+        if (result.type === 'success' && result.file && result.name) {
+            const data = readFile(result.file)
+            return wrapBufferInHtml(data, result.name);
+        } else {
+            throw result
+        }
+    }
+
+    return { wasm, compileHtml, fs, pkgDir };
+}
+
+async function setupEnvironmentv1() {
     const packages = [
         "elm/core/1.0.5",
         "elm/html/1.0.0",
@@ -74,21 +94,6 @@ export async function init() {
 
     await loadSources()
     await loadRegistry()
-
-    async function compileHtml(source) {
-        const raw = await wasm.compile(source)
-        const result = JSON.parse(raw);
-        console.info('Compilation result:', result);
-
-        if (result.type === 'success' && result.file && result.name) {
-            const data = readFile(result.file)
-            return wrapBufferInHtml(data, result.name);
-        } else {
-            throw result
-        }
-    }
-
-    return { wasm, compileHtml, fs, pkgDir };
 }
 
 async function loadSources() {
