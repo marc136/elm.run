@@ -51,7 +51,7 @@ extra-doc-files:    CHANGELOG.md
 executable ulm
     ghc-options:
         -Wall -Wunused-packages -no-hs-main -optl-mexec-model=reactor
-        "-optl-Wl,--export=hs_init,--export=wip,--export=buildArtifacts,--export=compile"
+        "-optl-Wl,--export=hs_init,--export=wip,--export=buildArtifacts,--export=compile,--export=make"
 
     -- .hs or .lhs file containing the Main module.
     main-is:          Ulm.hs
@@ -212,3 +212,4 @@ executable ulm
         Elm.Outline
         Reporting.Task
         ToStringHelper
+        CompileToStringHelper

@@ -56,6 +56,7 @@ import qualified Json.String
 import qualified Parse.Primitives
 
 import qualified Reporting.Annotation
+import qualified Reporting.Error.Canonicalize
 
 -- Ulm modules
 

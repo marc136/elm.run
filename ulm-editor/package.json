@@ -1,0 +1,23 @@
+{
+  "name": "ulm-editor",
+  "version": "0.0.1",
+  "description": "A simple editor similar to https://elm-lang.org/try",
+  "main": "src/ulm-editor.ts",
+  "scripts": {
+    "build": "npm run generate-ts-interop && npx elm-watch make",
+    "generate-ts-interop": "elm-ts-interop --output src/UlmEditor.elm.d.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Marc Walter",
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "@bjorn3/browser_wasi_shim": "0.3.0",
+    "nanotar": "0.1.1"
+  },
+  "devDependencies": {
+    "elm-ts-interop": "^0.0.8",
+    "elm-watch": "2.0.0-beta.3",
+    "esbuild": "0.23.0",
+    "esbuild-plugin-wasm": "1.1.0"
+  }
+}

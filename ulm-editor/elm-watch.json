@@ -1,0 +1,10 @@
+{
+    "targets": {
+        "ulm-editor": {
+            "inputs": [
+                "src/UlmEditor.elm"
+            ],
+            "output": "../www/dist/editor/elm.js"
+        }
+    }
+}

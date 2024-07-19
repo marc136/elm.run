@@ -48,14 +48,22 @@ foreign export javascript "buildArtifacts" buildArtifacts :: IO ()
 
 buildArtifacts = putStrLn "TODO buildArtifacts"
 
--- The main compilation logic is the same as
--- `../worker/src/Endpoint/Compile.hs`
 
 data Outcome
   = Success ModuleName.Raw String
   | NoMain
   | BadInput ModuleName.Raw Reporting.Error.Error
   | BuildingDependenciesFailed
+  deriving (Show)
+
+foreign export javascript "make"
+  makeWasm :: Wasm.JSString -> IO Wasm.JSString
+
+makeWasm :: Wasm.JSString -> IO Wasm.JSString
+makeWasm filepath = do
+  source <- File.readUtf8 (Wasm.fromJSString filepath)
+  outcome <- compileThis source
+  pure $ encodeJson $ outcomeToJson source outcome
 
 foreign export javascript "compile"
   compileWasm :: Wasm.JSString -> IO Wasm.JSString
@@ -66,12 +74,13 @@ compileWasm jsString =
       source = BSU.fromString $ trace "parsing" $ traceShowId str
    in do
         trace "wrote sample file" $ Data.ByteString.Builder.writeFile "/wasm-can-write" (Data.ByteString.Builder.stringUtf8 "horst")
-        trace "wrote sample file" $ Data.ByteString.Builder.writeFile "/packages/wasm-can-write" (Data.ByteString.Builder.stringUtf8 "horst")
         outcome <- compileThis source
         pure $ encodeJson $ outcomeToJson source outcome
 
 compileThis :: BSU.ByteString -> IO Outcome
 compileThis source =
+  -- The main compilation logic is the same as
+  -- `../worker/src/Endpoint/Compile.hs`
   case parse source of
     Left err ->
       pure $ BadInput Data.Name._Main (Reporting.Error.BadSyntax err)
@@ -79,9 +88,12 @@ compileThis source =
       let importNames = fmap Src.getImportName imports
        in do
             loaded <- Ulm.Details.loadArtifactsForApp "/"
+            -- loaded <- Ulm.Details.load "/"
             case loaded of
               Left err ->
-                pure BuildingDependenciesFailed
+                do
+                  putStrLn ("loadArtifacts error" ++ show err)
+                  pure BuildingDependenciesFailed
               Right artifacts ->
                 case Compile.compile Pkg.dummyName (ReadArtifacts.interfaces artifacts) modul of
                   Left err ->
@@ -172,6 +184,11 @@ outcomeToJson source outcome =
           "/"
           (Reporting.Error.Module name "/try" File.zeroTime source err)
           []
+    BuildingDependenciesFailed ->
+      Json.Encode.object
+        [ "type" ==> Json.Encode.chars "dependency-error",
+          "message" ==> Json.Encode.chars "Could not build all dependencies"
+        ]
 
 reportToJson :: Reporting.Exit.Help.Report -> Json.Encode.Value
 reportToJson =

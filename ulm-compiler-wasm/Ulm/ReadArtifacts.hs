@@ -15,7 +15,9 @@ import Elm.Package qualified as Pkg
 import Elm.Version qualified as V
 import GHC.Wasm.Prim
 import System.Directory qualified as Dir
+import System.FilePath ((</>))
 import System.IO qualified as IO
+import Ulm.Paths qualified
 
 data ArtifactsForWasm = ArtifactsForWasm
   { interfaces :: Map.Map ModuleName.Raw I.Interface,
@@ -23,14 +25,13 @@ data ArtifactsForWasm = ArtifactsForWasm
   }
 
 instance Show ArtifactsForWasm where
-  show (ArtifactsForWasm _ifaces _objects) = "Artifacts with inferfaces: " ++ show (fmap ModuleName.toChars $ Map.keys _ifaces )
-
+  show (ArtifactsForWasm _ifaces _objects) =
+    "Artifacts with inferfaces: " ++ show (fmap ModuleName.toChars $ Map.keys _ifaces)
 
 getArtifactsForWasm :: IO ArtifactsForWasm
 getArtifactsForWasm =
   getHardcodedArtifacts
-  
-  
+
 -- copied from builder/src/Elm/Details
 data Artifacts
   = Artifacts
@@ -84,21 +85,20 @@ getHardcodedArtifacts =
     ]
 
 getArtifacts :: [String] -> IO ArtifactsForWasm
-getArtifacts packages =
-  do
-    maybeArtifacts <- mapM readArtifacts packages
-    let artifacts = catMaybes maybeArtifacts
-    let interfaces :: [Map.Map ModuleName.Raw I.Interface]
-        interfaces = map artifactToCompileInterface artifacts
-     in pure $
-          ArtifactsForWasm
-            { interfaces = Map.unions interfaces,
-              objects = foldr mergeGlobalObjectsGraphs Opt.empty artifacts
-            }
+getArtifacts packages = do
+  maybeArtifacts <- mapM readArtifacts packages
+  let artifacts = catMaybes maybeArtifacts
+  let interfaces :: [Map.Map ModuleName.Raw I.Interface]
+      interfaces = map artifactToCompileInterface artifacts
+   in pure $
+        ArtifactsForWasm
+          { interfaces = Map.unions interfaces,
+            objects = foldr mergeGlobalObjectsGraphs Opt.empty artifacts
+          }
 
 readArtifacts :: (Binary ArtifactCache) => FilePath -> IO (Maybe Artifacts)
 readArtifacts package =
-  let path = "/packages/" ++ package ++ "/artifacts.dat"
+  let path = Ulm.Paths.packageCacheDir </> package </> "artifacts.dat"
    in do
         cache <- readBinary path
         return (fmap onlyArtifacts cache)
@@ -108,31 +108,32 @@ onlyArtifacts cache =
   _artifacts cache
 
 readBinary :: (Binary a) => FilePath -> IO (Maybe a)
-readBinary path =
+readBinary path = do
   -- / copied from builder/src/File.hs
-  do
-    pathExists <- (traceShow ("does file exist? " ++ path) (Dir.doesFileExist path))
+  pathExists <- Dir.doesFileExist path
+  putStrLn ("Does file '" ++ path ++ "' exist? " ++ show pathExists)
 
-    if traceShowId pathExists
-      then do
-        result <- Binary.decodeFileOrFail path
-        case result of
-          Right a ->
-            return (Just a)
-          Left (offset, message) ->
-            do
-              --   IO.hPutStrLn IO.stderr $
-              --     unlines $
-              --       [ "+-------------------------------------------------------------------------------",
-              --         "|  Corrupt File: " ++ path,
-              --         "|   Byte Offset: " ++ show offset,
-              --         "|       Message: " ++ message,
-              --         "|",
-              --         "| Please report this to https://github.com/elm/compiler/issues",
-              --         "| Trying to continue anyway.",
-              --         "+-------------------------------------------------------------------------------"
-              --       ]
-              return Nothing
-      else
-        trace ("ERROR: file " ++ path ++ " does not exist") $
-          return Nothing
+  if pathExists
+    then do
+      result <- Binary.decodeFileOrFail path
+      case result of
+        Right a ->
+          return (Just a)
+        Left (offset, message) ->
+          do
+            --   IO.hPutStrLn IO.stderr $
+            putStrLn $
+              unlines $
+                [ "+-------------------------------------------------------------------------------",
+                  "|  Corrupt File: " ++ path,
+                  "|   Byte Offset: " ++ show offset,
+                  "|       Message: " ++ message,
+                  "|",
+                  -- "| Please report this to https://github.com/elm/compiler/issues",
+                  "| Trying to continue anyway.",
+                  "+-------------------------------------------------------------------------------"
+                ]
+            return Nothing
+    else
+      trace ("ERROR: file " ++ path ++ " does not exist") $
+        return Nothing

@@ -10,15 +10,16 @@ set -e
 wasm32-wasi-cabal build exe:ulm
 wasm32-wasi-cabal list-bin exe:ulm
 BUILT="$(wasm32-wasi-cabal list-bin exe:ulm)"
-DIR=../www/dist
+DIR=../www/generated
 
 cp "$BUILT" "$DIR/ulm.wasm"
+cp "$BUILT" ../www/dist/ulm.wasm # Copied there until I make esbuild load the wasm file
 tar -czvf "$DIR/ulm.tar.gz" "$DIR/ulm.wasm"
 # Generate JS wrapper
 $(wasm32-wasi-ghc --print-libdir)/post-link.mjs -i "$DIR/ulm.wasm" -o "$DIR/ulm.js"
 
 echo "NOTE: Disabled wasm compression"
-du -h ../www/dist/ulm.{wasm,tar.gz}
+du -h ../www/generated/ulm.{wasm,tar.gz}
 exit 0
 
 # "-Oz" -> optimize for file size
