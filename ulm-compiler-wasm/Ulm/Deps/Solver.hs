@@ -91,9 +91,8 @@ data Details =
 
 verify :: Ulm.Paths.PackageCache -> Registry.Registry -> Map.Map Pkg.Name C.Constraint -> IO (Result (Map.Map Pkg.Name Details))
 verify cache registry constraints =
-  case try (traceShow ("verify constraints: " ++ show constraints) constraints) of
+  case try constraints of
     Solver solver ->
-      traceShow "verify -> got solver back" $
       solver (State cache registry Map.empty)
         (\s a _ -> return $ Ok (Map.mapWithKey (addDeps s) a))
         (\(State cache registry map) -> 
@@ -136,33 +135,32 @@ instance Show Goals where
 
 exploreGoals :: Goals -> Solver (Map.Map Pkg.Name V.Version)
 exploreGoals (Goals pending solved) =
-  case Map.minViewWithKey (traceShow ("exploreGoals minViewWithKey" ++ show pending) pending) of
+  case Map.minViewWithKey pending of
     Nothing ->
       return solved
 
     Just ((name, constraint), otherPending) ->
       do  let goals1 = Goals otherPending solved
           let addVsn = addVersion goals1 name
-          -- putStrLn  (("exploreGoals2" ++ show (name, constraint)))
           (v,vs) <- getRelevantVersions name constraint 
           goals2 <- oneOf (addVsn v) (map addVsn vs)
-          exploreGoals (traceShow "goals2" goals2)
+          exploreGoals goals2
 
 
 addVersion :: Goals -> Pkg.Name -> V.Version -> Solver Goals
 addVersion (Goals pending solved) name version =
-  do  (Constraints elm deps) <- getConstraints (traceShow ("addVersion for " ++ Pkg.toChars name ++ " " ++ V.toChars version) name) version
+  do  (Constraints elm deps) <- getConstraints name version
       if C.goodElm elm
         then
-          do  newPending <- foldM (addConstraint solved) (traceShow "pending1" pending) (Map.toList deps)
-              return (traceShow "addVersion return" $ Goals newPending (Map.insert name version solved))
+          do  newPending <- foldM (addConstraint solved) pending (Map.toList deps)
+              return (Goals newPending (Map.insert name version solved))
         else
           backtrack
 
 
 addConstraint :: Map.Map Pkg.Name V.Version -> Map.Map Pkg.Name C.Constraint -> (Pkg.Name, C.Constraint) -> Solver (Map.Map Pkg.Name C.Constraint)
 addConstraint solved unsolved (name, newConstraint) =
-  case Map.lookup (traceShow "addConstraint name solved" name) solved of
+  case Map.lookup name solved of
     Just version ->
       if C.satisfies newConstraint version
       then return unsolved
@@ -209,7 +207,7 @@ getConstraints :: Pkg.Name -> V.Version -> Solver Constraints
 getConstraints pkg vsn =
   Solver $ \state@(State cache registry cDict) ok back err ->
     do  let key = (pkg, vsn)
-        case traceShow ("getConstraints Map.lookup " ++ show key) $ Map.lookup key cDict of
+        case Map.lookup key cDict of
           Just cs ->
             ok state cs back
 
