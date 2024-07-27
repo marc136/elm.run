@@ -13,8 +13,10 @@
             "elm/html": "1.0.0",
             "elm/json": "1.1.3",
             "elm/project-metadata-utils": "1.0.2",
+            "elm/svg": "1.0.1",
             "elm-community/html-extra": "3.4.0",
-            "elmcraft/core-extra": "2.0.0"
+            "elmcraft/core-extra": "2.0.0",
+            "jasonliang-dev/elm-heroicons": "2.3.0"
         },
         "indirect": {
             "elm/parser": "1.1.0",

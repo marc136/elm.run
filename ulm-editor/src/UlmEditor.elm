@@ -4,6 +4,7 @@ import Browser
 import Data.Problem
 import Elm.Error
 import Examples exposing (Example)
+import Heroicons.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
@@ -253,8 +254,20 @@ viewOutput model =
     in
     [ Html.menu []
         [ Html.button
-            [ Html.Events.onClick TriggeredCompile ]
-            [ Html.text "compile" ]
+            [ Html.Events.onClick TriggeredCompile
+            , Html.Attributes.title "Run code"
+            ]
+            [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
+            , Html.text "Run code"
+            ]
+        , Html.button
+            [ Html.Attributes.class "circle-icon"
+            , Html.Events.onClick TriggeredCompile
+            , Html.Attributes.title "compile"
+            , Html.Attributes.attribute "aria-label" "compile"
+            ]
+            [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
+            ]
         , case ( model.lastCompilation, model.visibleProgram ) of
             ( Success newUrl, Just oldUrl ) ->
                 if newUrl /= oldUrl then
