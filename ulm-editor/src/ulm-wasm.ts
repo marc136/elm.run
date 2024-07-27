@@ -10,9 +10,31 @@ export interface Compiler {
     make: (filepath: string) => Promise<CompileResult>
 }
 
-// CompilerReport in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs
-// Report in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs
-export type CompileResult = AsCustomEvent<'compile-result'>
+// // CompilerReport in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs
+// // Report in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs
+// export type CompileResult = AsCustomEvent<'compile-result'>
+export type CompileResult =
+    {
+        type: 'success',
+        // full file path of generated js code
+        file: string,
+        // Elm module name
+        name: string
+    }
+    | // CompilerReport in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs
+    {
+        type: 'compile-errors'
+        errors: ElmCompilerError[]
+    }
+    | // Report in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs
+    {
+        type: 'error',
+        path: string
+        title: string
+        message: string
+    }
+
+type ElmCompilerError = unknown
 
 export async function loadCompiler(fs: Fd): Promise<Compiler> {
     // TODO load these two with esbuild? Maybe build to a `generated` dir?

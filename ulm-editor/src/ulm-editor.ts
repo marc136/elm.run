@@ -1,6 +1,15 @@
-import { writeFile, readFileToString, printFs, fs, unpackInto, pkgDir, writeFileInDir } from "./fs.ts";
-import type { Compiler } from './ulm-wasm.ts'
+import {
+  writeFile,
+  readFileToString,
+  printFs,
+  fs,
+  unpackInto,
+  pkgDir,
+  writeFileInDir,
+} from "./fs.ts";
+import type { Compiler } from "./ulm-wasm.ts";
 import { parseTarGzip } from "nanotar";
+import type { Elm, ElmApp } from "./UlmEditor.elm";
 
 /*
 
@@ -22,28 +31,42 @@ code-editor starts loading ulm-wasm-compiler, elm dependencies
 
 //*/
 
-let ulm: Compiler | null = null
+export function init(sourceFile: string) {
+  const main = window.Elm.UlmEditor.init({
+    node: document.getElementById("main"),
+    flags: {
+      file: sourceFile,
+    },
+  });
+
+  UlmEditor.elmApp = main;
+  window.customElements.define("ulm-editor", UlmEditor);
+}
+
+let ulm: Compiler | null = null;
 
 async function initWasmCompiler() {
-    if (ulm) return
+  if (ulm) return;
 
-    const { loadCompiler } = await import('./ulm-wasm.ts')
-    ulm = await loadCompiler(fs)
-    await runElmInit()
-    console.warn('loaded wasm-editor')
+  const { loadCompiler } = await import("./ulm-wasm.ts");
+  ulm = await loadCompiler(fs);
+  await runElmInit();
+  console.warn("loaded wasm-editor");
 }
 
 async function runElmInit() {
-    // this tar file also contains the default `elm.json` (but it appears broken?)
-    // const result = await fetch('/elm-init.tar.gz')
-    // const tar = await parseTarGzip(await result.arrayBuffer())
-    // await unpackInto('/', tar)
-    const result = await fetch('/elm-default-package-artifacts.tar.gz')
-    const tar = await parseTarGzip(await result.arrayBuffer())
-    console.log('tar', tar)
-    await unpackInto('/elm-home/0.19.1/packages', tar)
+  // this tar file also contains the default `elm.json` (but it appears broken?)
+  // const result = await fetch('/elm-init.tar.gz')
+  // const tar = await parseTarGzip(await result.arrayBuffer())
+  // await unpackInto('/', tar)
+  const result = await fetch("/elm-default-package-artifacts.tar.gz");
+  const tar = await parseTarGzip(await result.arrayBuffer());
+  console.log("tar", tar);
+  await unpackInto("/elm-home/0.19.1/packages", tar);
 
-    await writeFile('/elm.json', `{
+  await writeFile(
+    "/elm.json",
+    `{
         "type": "application",
         "source-directories": [
             "src"
@@ -67,158 +90,201 @@ async function runElmInit() {
             "indirect": {}
         }
     }
-    `)
+    `,
+  );
 
-    await loadPackageRegistry()
+  await loadPackageRegistry();
 }
 
 async function loadPackageRegistry() {
-    // TODO query https://package.elm-lang.org/all-packages
-    // or query https://package.elm-lang.org/all-packages/since/{package-count}
-    // then send it to wasm and store it in binary form?
-    // -> See `fetch` in elm-compiler-wasm/builder/src/Deps/Registry.hs
-    const allpackages = await fetch('/elm-home/0.19.1/packages/registry.dat')
-    writeFileInDir(pkgDir, 'registry.dat', await allpackages.arrayBuffer())
+  // TODO query https://package.elm-lang.org/all-packages
+  // or query https://package.elm-lang.org/all-packages/since/{package-count}
+  // then send it to wasm and store it in binary form?
+  // -> See `fetch` in elm-compiler-wasm/builder/src/Deps/Registry.hs
+  const allpackages = await fetch("/elm-home/0.19.1/packages/registry.dat");
+  writeFileInDir(pkgDir, "registry.dat", await allpackages.arrayBuffer());
 }
 
 async function compile(file: string) {
-    if (!ulm) {
-        console.error('Cannot compile, the WASM compiler was not loaded')
-        return
-    }
-    file = file.trim()
-    if (!file.trim()) {
-        console.error(`Cannot compile, "${file}" is not a valid path`)
-        return
-    }
+  if (!ulm) {
+    console.error("Cannot compile, the WASM compiler was not loaded");
+    return;
+  }
+  if (!file.trim()) {
+    console.error(`Cannot compile, "${file}" is not a valid path`);
+    return;
+  }
+  file = file.trim();
 
-    printFs()
-    const start = Date.now()
-    console.info('Starting compilation of', file)
-    // const result = await ulm.make(file)
-    const result = await ulm.compile(await readFileToString(file))
-    console.info(`Finished compilation after ${((Date.now() - start) / 1000).toFixed(3)}s`, result)
-    return result
+  printFs();
+  const start = Date.now();
+  console.info("Starting compilation of", file);
+  // const result = await ulm.make(file)
+  const result = await ulm.compile(await readFileToString(file));
+  console.info(
+    `Finished compilation after ${((Date.now() - start) / 1000).toFixed(3)}s`,
+    result,
+  );
+  return result;
 }
 
 class UlmEditor extends HTMLElement {
-    static observedAttributes = ['file']
+  static observedAttributes = ["file"];
+  static elmApp: ElmApp | null = null;
 
-    private _source: string = ''
-    private _theme: 'light' | 'dark' = 'light'
-    private _editor: unknown | null = null
-    private _file: string | null = null
-    private _isCompiling = false
-    private _lastBuild: URL | null = null
+  private _source: string = "";
+  private _theme: "light" | "dark" = "light";
+  private _editor: unknown | null = null;
+  private _file: string | null = null;
+  private _isCompiling = false;
+  private _lastBuild: URL | null = null;
 
-    connectedCallback() {
-        const sendChangeEvent = debounce((function () {
-            const previous = this._source
-            this._source = this._editor.getValue()
-            if (previous === this._source) return
-            writeFile(this._file, this._source)
-            this.emit('change', null)
-        }).bind(this));
+  connectedCallback() {
+    const sendChangeEvent = debounce(
+      function () {
+        const previous = this._source;
+        this._source = this._editor.getValue();
+        if (previous === this._source) return;
+        writeFile(this._file, this._source);
+        this.emit("change", null);
+      }.bind(this),
+    );
 
-        // TODO import codemirror instead
-        this._editor = window.CodeMirror(this, {
-            mode: "elm",
-            lineNumbers: true,
-            keyMap: "sublime",
-            matchBrackets: true,
-            autoCloseBrackets: true,
-            styleActiveLine: true,
-            theme: this._theme,
-            value: this._source,
-            tabSize: 2,
-            indentWithTabs: false,
-            extraKeys: {
-                "Tab": (cm) => { cm.execCommand("indentMore") },
-                "Shift-Tab": (cm) => { cm.execCommand("indentLess") },
-                "Cmd-S": (cm) => { this.emit('save', null) },
-                // "Ctrl-Enter": (cm) => { this.emit('save', null) }
-                "Ctrl-Enter": (cm) => { this.compile() }
-            }
-        });
-        // this._editor.on('changes', this.sendChangeEvent.bind(this));
-        this._editor.on('changes', evt => console.log('editor changes', evt));
+    //@ts-expect-error TODO import codemirror instead
+    this._editor = window.CodeMirror(this, {
+      mode: "elm",
+      lineNumbers: true,
+      keyMap: "sublime",
+      matchBrackets: true,
+      autoCloseBrackets: true,
+      styleActiveLine: true,
+      theme: this._theme,
+      value: this._source,
+      tabSize: 2,
+      indentWithTabs: false,
+      extraKeys: {
+        Tab: (cm) => {
+          cm.execCommand("indentMore");
+        },
+        "Shift-Tab": (cm) => {
+          cm.execCommand("indentLess");
+        },
+        "Cmd-S": (cm) => {
+          this.emit("save", null);
+        },
+        // "Ctrl-Enter": (cm) => { this.emit('save', null) }
+        "Ctrl-Enter": (cm) => {
+          this.compile();
+        },
+      },
+    });
+    // this._editor.on('changes', this.sendChangeEvent.bind(this));
+    this._editor.on("changes", (evt) => console.log("editor changes", evt));
 
-        this._isCompiling = false
-        requestIdleCallback(() => {
-            this.dispatchEvent(new CustomEvent(''))
-            initWasmCompiler()
-                .then(() => {
-                    this.emit('compiler', 'ready')
-                    this.compile()
-                })
-                .catch(error => {
-                    this.emit('compiler', { error })
-                })
+    this._isCompiling = false;
+    this.connectPorts();
+
+    requestIdleCallback(() => {
+      this.dispatchEvent(new CustomEvent(""));
+      initWasmCompiler()
+        .then(() => {
+          this.emit("compiler", "ready");
+          this.compile();
         })
+        .catch((error) => {
+          this.emit("compiler", { error });
+        });
+    });
 
-        this.addEventListener('compile-result', (evt: CustomEvent) => console.warn('change-result', evt.detail))
-    }
+    this.addEventListener("compile-result", (evt: CustomEvent) =>
+      console.warn("change-result", evt.detail),
+    );
+  }
 
-    disconnectedCallback() {
-        this._editor = null
-        this._theme = 'light'
-        this._source = ''
-        this._isCompiling = false
-        this._lastBuild = null
-    }
+  disconnectedCallback() {
+    this._editor = null;
+    this._theme = "light";
+    this._source = "";
+    this._isCompiling = false;
+    this._lastBuild = null;
+  }
 
-    attributeChangedCallback(name, oldValue, newValue) {
-        console.log(`Attribute ${name} has changed.`, { oldValue, newValue });
+  attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+    console.log(`Attribute ${name} has changed.`, { oldValue, newValue });
 
-        switch (name) {
-            case 'file':
-                this._file = newValue
-                if (newValue && newValue !== oldValue) {
-                    readFileToString(newValue).then(content => {
-                        console.info(`Loaded file '${newValue}' from fs`)
-                        this._source = content
-                        this._editor?.setValue(content)
-                    })
-                }
-                break
-            default:
-                console.warn(`TODO handle attribute "${name}" change`)
+    switch (name) {
+      case "file":
+        this._file = newValue;
+        if (newValue && newValue !== oldValue) {
+          readFileToString(newValue).then((content) => {
+            console.info(`Loaded file '${newValue}' from fs`);
+            this._source = content;
+            this._editor?.setValue(content);
+          });
         }
+        break;
+      default:
+        console.warn(`TODO handle attribute "${name}" change`);
     }
+  }
 
-    private emit(event, detail: unknown) {
-        this.dispatchEvent(new CustomEvent(event, { bubbles: true, detail }))
+  private emit(event: string, detail: unknown) {
+    this.dispatchEvent(new CustomEvent(event, { bubbles: true, detail }));
+  }
+
+  private connectPorts() {
+    if (!UlmEditor.elmApp) {
+      throw new Error("No Elm App was attached to the editor");
     }
+    UlmEditor.elmApp.ports.interopFromElm.subscribe((msg) => {
+      console.info("port message `fromElm`", msg);
+      switch (msg.tag) {
+        case "revoke-object-url":
+          return URL.revokeObjectURL(msg.data);
+        case "compile":
+          this.compile();
+          break;
+        case "replace-code":
+          this._editor?.setValue(msg.data);
+          this.compile();
+          break;
+        default:
+          console.warn("Unknown port message `fromElm`", msg);
+      }
+    });
+  }
 
-    private async compile() {
-        if (this._isCompiling) {
-            console.warn('Skipping compilation because it is already in progress')
-            return
-        }
-        this._isCompiling = true
-        try {
-            writeFile(this._file, this._editor.getValue())
-            const result = await compile(this._file ?? '')
-            if (result?.type === 'success') {
-                const data = await readFileToString(result.file)
-                console.warn('TODO handle success build', result)
-                const html = wrapInHtml(data, result.name);
-                const blob = new Blob([html], { type: 'text/html' })
-                const url = URL.createObjectURL(blob)
-                this.emit('compile-result', { type: 'success', url })
-            } else {
-                console.warn('TODO handle error cases', result)
-            }
-        } catch (ex) {
-
-        } finally {
-            this._isCompiling = false
-        }
+  private async compile() {
+    if (this._isCompiling) {
+      console.warn("Skipping compilation because it is already in progress");
+      return;
     }
+    if (!this._file || !this._editor) {
+      console.warn("Skipping comilation because file or editor are not set");
+      return;
+    }
+    this._isCompiling = true;
+    try {
+      writeFile(this._file, this._editor.getValue());
+      const result = await compile(this._file ?? "");
+      if (result?.type === "success") {
+        const data = await readFileToString(result.file);
+        const html = wrapInHtml(data, result.name);
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        this.emit("compile-result", { type: "success", url });
+      } else {
+        this.emit("compile-result", result);
+      }
+    } catch (ex) {
+    } finally {
+      this._isCompiling = false;
+    }
+  }
 }
 
-export function wrapInHtml(code, name) {
-    return `<!DOCTYPE HTML>
+export function wrapInHtml(code: string, name: string) {
+  return `<!DOCTYPE HTML>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -250,48 +316,43 @@ catch (e)
 </script>
 
 </body>
-</html>`
+</html>`;
 }
 
+// Not yet supported in Safari 17.6
+window.requestIdleCallback =
+  window.requestIdleCallback ||
+  function requestIdleCallbackFallback(cb) {
+    var start = Date.now();
+    return setTimeout(function () {
+      cb({
+        didTimeout: false,
+        timeRemaining: function () {
+          return Math.max(0, 50 - (Date.now() - start));
+        },
+      });
+    }, 1);
+  };
 
 // Not yet supported in Safari 17.6
-window.requestIdleCallback = window.requestIdleCallback ||
-    function requestIdleCallbackFallback(cb) {
-        var start = Date.now();
-        return setTimeout(function () {
-            cb({
-                didTimeout: false,
-                timeRemaining: function () {
-                    return Math.max(0, 50 - (Date.now() - start));
-                }
-            });
-        }, 1);
-    }
-
-// Not yet supported in Safari 17.6
-window.cancelIdleCallback = window.cancelIdleCallback ||
-    function cancelIdleCallbackFallback(id) {
-        clearTimeout(id);
-    }
-
+window.cancelIdleCallback =
+  window.cancelIdleCallback ||
+  function cancelIdleCallbackFallback(id) {
+    clearTimeout(id);
+  };
 
 // DEBOUNCER
 
-function debounce(func) {
-    let token;
-    return () => {
-        function later() {
-            token = null;
-            func.apply(null, arguments);
-        };
-        cancelIdleCallback(token);
-        token = requestIdleCallback(later);
-    };
-};
+function debounce(func: Function) {
+  let token: number | null = null;
+  return () => {
+    function later() {
+      token = null;
+      func.apply(null, arguments);
+    }
+    if (token) cancelIdleCallback(token);
+    token = requestIdleCallback(later);
+  };
+}
 
-
-export {
-    UlmEditor,
-    writeFile,
-    printFs
-};
+export { UlmEditor, writeFile, printFs };

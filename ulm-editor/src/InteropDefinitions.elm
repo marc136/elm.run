@@ -1,5 +1,6 @@
 module InteropDefinitions exposing
-    ( Flags
+    ( CompileResult
+    , Flags
     , FromElm(..)
     , ToElm(..)
     , compileResult
@@ -8,7 +9,7 @@ module InteropDefinitions exposing
 
 import Json.Decode
 import TsJson.Decode as TsDecode exposing (Decoder)
-import TsJson.Encode as TsEncode exposing (Encoder, optional, required)
+import TsJson.Encode as TsEncode exposing (Encoder)
 
 
 interop :
@@ -24,7 +25,9 @@ interop =
 
 
 type FromElm
-    = RevokeObjectUrl String
+    = TriggerCompile String
+    | RevokeObjectUrl String
+    | ReplaceCodeWith String
 
 
 type ToElm
@@ -45,22 +48,37 @@ type alias Flags =
 fromElm : Encoder FromElm
 fromElm =
     TsEncode.union
-        (\vRevokeUrl value ->
+        (\vTriggerCompile vRevokeUrl vReplaceCodeWith value ->
             case value of
-                RevokeObjectUrl string ->
-                    vRevokeUrl string
+                TriggerCompile filepath ->
+                    vTriggerCompile filepath
+
+                RevokeObjectUrl url ->
+                    vRevokeUrl url
+                ReplaceCodeWith source ->
+                    vReplaceCodeWith source
         )
+        |> TsEncode.variantTagged "compile" TsEncode.string
         |> TsEncode.variantTagged "revoke-object-url" TsEncode.string
+        -- |> TsEncode.variantTagged "revoke-object-url"
+        --     (TsEncode.object [ required "url" identity TsEncode.string ])
+        |> TsEncode.variantTagged "replace-code" TsEncode.string
         |> TsEncode.buildUnion
 
 
 toElm : Decoder ToElm
 toElm =
     TsDecode.discriminatedUnion "tag"
-        [ ( "compile-result"
-          , TsDecode.field "detail" (TsDecode.map OnCompileResult compileResult)
-          )
+        [ ( "compile-result", compileResultEvent )
+
+        --   , TsDecode.field "detail" (TsDecode.map OnCompileResult compileResult)
+        --   )
         ]
+
+
+compileResultEvent : Decoder ToElm
+compileResultEvent =
+    TsDecode.field "detail" (TsDecode.map OnCompileResult compileResult)
 
 
 compileResult : Decoder CompileResult

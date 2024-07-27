@@ -445,9 +445,12 @@ build cache depsMVar pkg (Solver.Details vsn _) f fs =
                       return $ Left $ Nothing
 
                 Right directArtifacts ->
-                  do  let src = Ulm.Paths.package cache pkg   vsn </> "src"
-                      let foreignDeps = gatherForeignInterfaces directArtifacts
-                      let exposedDict = Map.fromKeys (\_ -> ()) (Outline.flattenExposed exposed)
+                  -- now we're sure that `directArtifacts` is a non-empty list
+                  do  let src = Ulm.Paths.package cache pkg vsn </> "src"
+                      let foreignDeps :: Map.Map ModuleName.Raw ForeignInterface
+                          foreignDeps = gatherForeignInterfaces directArtifacts
+                      let exposedDict :: Map.Map ModuleName.Raw ()
+                          exposedDict = Map.fromKeys (\_ -> ()) (Outline.flattenExposed exposed)
                       docsStatus <- getDocsStatus cache pkg vsn
                       mvar <- newEmptyMVar
                       mvars <- Map.traverseWithKey (const . fork . crawlModule foreignDeps mvar pkg src docsStatus) exposedDict

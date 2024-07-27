@@ -1,2 +1,35 @@
 /* TODO combine with www/dist/editor/styles.css */
 
+#main {
+    display: flex;
+    flex-direction: row;
+    justify-items: stretch;
+}
+
+#output {
+    display: flex;
+    flex-direction: row;
+}
+
+#output>menu {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+}
+
+#output>article {
+    flex: 1 1 auto;
+    display: flex;
+    width: 100%;
+    justify-content: stretch;
+    align-items: stretch;
+}
+
+#output>article>* {
+    width: 100%;
+}
+
+.hidden {
+    display: none;
+}

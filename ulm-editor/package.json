@@ -5,7 +5,7 @@
   "main": "src/ulm-editor.ts",
   "scripts": {
     "build": "npm run generate-ts-interop && npx elm-watch make",
-    "generate-ts-interop": "elm-ts-interop --output src/UlmEditor.elm.d.ts",
+    "generate-ts-interop": "elm-ts-interop --output src/UlmEditor.elm.d.ts --entrypoint UlmEditor",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Marc Walter",

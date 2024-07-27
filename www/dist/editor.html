@@ -9,6 +9,7 @@
   <meta name="description"
     content="Try out Elm: A delightful language with friendly error messages, great performance, small assets, and no runtime exceptions.">
   <link rel="stylesheet" href="./editor/styles.css" />
+  <link rel="stylesheet" href="./editor/ulm-editor.css" />
 </head>
 
 <body>
@@ -35,8 +36,7 @@
   <!-- <script src="./editor/custom-elements.js"></script> -->
   <script src="./editor/elm.js"></script>
   <script type="module">
-    import { UlmEditor, writeFile, printFs } from './editor/ulm-editor.mjs'
-    window.customElements.define('ulm-editor', UlmEditor);
+    import { init, writeFile, printFs } from './editor/ulm-editor.mjs'
     // TODO import Elm?
     const sourceFile = '/src/Example.elm'
     writeFile(sourceFile, `module Example exposing (main)
@@ -47,49 +47,7 @@ main : Html msg
 main =
     Html.text "main"
 `)
-
-    const main = window.Elm.UlmEditor.init({
-      node: document.getElementById('main'),
-      flags: {
-        file: sourceFile,
-      }
-    });
-
-    window.addEventListener('load', function () {
-      // It could optionally also create a custom elm.json file
-      // But for now it would be overwritten from the default elm-init.tar.gz
-
-
-      // let compileHtml;
-      // const importCompiler = import('./eximple.mjs')
-      //   .then(async ({ init }) => init())
-      //   .then(ulm => { compileHtml = ulm.compileHtml });
-
-      // main.ports.submitSource.subscribe(function (source) {
-      //   /** @type {HTMLFrameElement} */
-      //   const output = document.getElementById('output');
-      //   compileHtml(source)
-      //     .then(html => {
-      //       output.src = getBlobURL(html, 'text/html');
-      //       main.ports.gotSuccess.send(null);
-      //     })
-      //     .catch(ex => {
-      //       console.error(ex)
-      //       output.src = getBlobURL(`<h1>Error:</h1><pre>${JSON.stringify(ex, undefined, 2)}</pre>`, 'text/html');
-      //       main.ports.gotErrors.send(ex);
-      //     });
-      // });
-
-      // window.addEventListener("error", function (e) {
-      //   main.ports.gotJsError.send(e.error.message);
-      //   return false;
-      // });
-    });
-
-    function getBlobURL(code, type) {
-      const blob = new Blob([code], { type });
-      return URL.createObjectURL(blob);
-    }
+    init(sourceFile)
   </script>
 
 </body>
