@@ -1,0 +1,10 @@
+{
+    "targets": {
+        "ulm-editor": {
+            "inputs": [
+                "src/UlmRepl.elm"
+            ],
+            "output": "../www/dist/repl/ulm-repl.js"
+        }
+    }
+}
