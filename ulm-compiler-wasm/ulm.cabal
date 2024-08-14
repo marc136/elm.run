@@ -29,7 +29,7 @@ version:            0.19.1.0
 -- description:
 
 license:            BSD-3-Clause
-license-file:       LICENSE.txt
+license-file:       LICENCE.txt
 
 -- The package author(s).
 author:             Marc Walter
