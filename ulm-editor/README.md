@@ -11,3 +11,19 @@ For `../www/dist/editor.html` to work, you first need to build the codemirror fi
 Then you need to build the js parts by running `deno run dev.mjs` (which also starts hot-reload esbuild server).
 
 And then you also need to build the Elm program with `npx elm-watch hot`
+
+---
+
+## TODO
+
+Use a web worker for compilation, see https://web.dev/articles/webassembly-performance-patterns-for-web-apps#good_task_runs_in_web_worker_and_loads_and_compiles_only_once
+
+---
+
+## Thoughts about the behavior
+
+When editing text, I want to see the amount of problems instantly (throttled/debounced).
+
+But I want to also have the option to turn off this instant verification, because it might be frightening to students.
+
+When editing text, and the program compiles successfully, I don't want to switch to it immediately but rather press a button to show the new program (because I might lose state).

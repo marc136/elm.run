@@ -16,7 +16,7 @@ module Ulm.Details
 
 -- clone of elm-compiler-wasm/builder/src/Elm/Details.hs
 
-import Control.Concurrent (forkIO)
+import Control.Concurrent (forkIO, newEmptyMVar)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, readMVar, takeMVar)
 import Control.Monad (liftM, liftM2, liftM3)
 import Data.Binary (Binary, get, put, getWord8, putWord8)
@@ -68,7 +68,7 @@ import Debug.Trace (traceShow, traceShowId)
 
 wipJson :: IO Json.Encode.Value
 wipJson =
-  do  --  loaded <- load "/"
+  do  -- loaded <- load "/"
       -- loaded <- loadArtifactsForApp "/"
       -- let shown = traceShow "loaded" loaded
       -- case traceShowId loaded of
@@ -151,6 +151,7 @@ loadArtifactsForApp root =
               putStrLn ("indirect: " ++ show indirect)
               putStrLn ("mapped: " ++ show packages)
               artifacts <- Ulm.ReadArtifacts.getArtifacts packages
+              putStrLn ("artifacts loaded, interfaces: " ++ show (Map.keys (Ulm.ReadArtifacts.interfaces artifacts)))
               pure $ Right artifacts
 
 
@@ -215,7 +216,7 @@ initEnv root =
       eitherOutline <- Outline.read root
       case (eitherOutline, maybeRegistry) of
         (Left problem, _) ->
-          return $ Left $ Exit.DetailsBadOutline problem
+          return $ Left $ Exit.DetailsBadOutline (traceShowId problem)
 
         (_, Nothing) ->
             return $ Left $ Exit.DetailsNoRegistryCache
@@ -260,10 +261,10 @@ verifyApp env outline@(Outline.AppOutline elmVersion srcDirs direct _ _ _) =
 
 checkAppDeps :: Outline.AppOutline -> Task (Map.Map Pkg.Name V.Version)
 checkAppDeps (Outline.AppOutline _ _ direct indirect testDirect testIndirect) =
-  do  x <- union allowEqualDups indirect testDirect
-      y <- union noDups direct testIndirect
-      union noDups x y
-
+--   do  x <- union allowEqualDups indirect testDirect
+--       y <- union noDups direct testIndirect
+--       union noDups x y
+  union noDups direct indirect
 
 
 -- VERIFY CONSTRAINTS
@@ -292,11 +293,11 @@ noDups _ _ _ =
   Task.throw Exit.DetailsHandEditedDependencies
 
 
-allowEqualDups :: (Eq v) => k -> v -> v -> Task v
-allowEqualDups _ v1 v2 =
-  if v1 == v2
-  then return v1
-  else Task.throw Exit.DetailsHandEditedDependencies
+-- allowEqualDups :: (Eq v) => k -> v -> v -> Task v
+-- allowEqualDups _ v1 v2 =
+--   if v1 == v2
+--   then return v1
+--   else Task.throw Exit.DetailsHandEditedDependencies
 
 
 
@@ -313,16 +314,41 @@ fork work =
 
 -- VERIFY DEPENDENCIES
 
+acquireLock :: FilePath -> MVar () -> IO ()
+acquireLock filepath mvar =
+  putMVar mvar ()
+
+releaseLock :: FilePath -> MVar () -> IO ()
+releaseLock filepath mvar =
+  takeMVar mvar
 
 verifyDependencies :: Env -> ValidOutline -> Map.Map Pkg.Name Solver.Details -> Map.Map Pkg.Name a -> Task Details
 verifyDependencies env@(Env key scope root cache _ _ _) outline solution directDeps =
   Task.eio id $
   do  --Reporting.report key (Reporting.DStart (Map.size solution))
+      putStrLn $ "verifyDependencies, will now traverse solution " ++ (show (Map.size solution))
+
+      -- TODO don't globally lock, use the file path
+      -- See the example of a skip channel on https://hackage.haskell.org/package/base-4.20.0.1/docs/Control-Concurrent-MVar.html
+      -- Explanation of MVar
+      -- https://book.realworldhaskell.org/read/concurrent-and-multicore-programming.html
+      -- More powerful than MVar
+      -- https://book.realworldhaskell.org/read/software-transactional-memory.html
+      -- registryLock <- newEmptyMVar
+      -- acquireLock "first" registryLock
+      -- putStrLn $ "registryLock should be non-empty " ++ show registryLock
+
+      -- creates mvar
       mvar <- newEmptyMVar
-      mvars <- Map.traverseWithKey (\k v -> fork (verifyDep env mvar solution k v)) solution
+      -- Map Pkg.Name (Task?)
+      mvars <- 
+        Map.traverseWithKey (\k v -> fork (verifyDep env mvar solution k v)) solution
+      -- places the map of all packages into mvar
       putMVar mvar mvars
+      -- reads each "Task" from the MVar
       deps <- traverse readMVar mvars
-      case sequence deps of
+      putStrLn $ "deps" ++  show deps
+      case traceShow "   with deps" $ traceShowId $ sequence deps of
         Left _ ->
           return $ Left $ Exit.DetailsBadDeps Ulm.Paths.packageCacheDir $
               Maybe.catMaybes $ Either.lefts $ Map.elems deps
@@ -424,7 +450,9 @@ type Fingerprint =
 
 build :: Ulm.Paths.PackageCache -> MVar (Map.Map Pkg.Name (MVar Dep)) -> Pkg.Name -> Solver.Details -> Fingerprint -> Set.Set Fingerprint -> IO Dep
 build cache depsMVar pkg (Solver.Details vsn _) f fs =
-  do  eitherOutline <- Outline.read (Ulm.Paths.package cache pkg vsn)
+  do  --  putStrLn ("build " ++ show pkg ++ show vsn)
+      eitherOutline <- Outline.read (Ulm.Paths.package cache pkg vsn)
+      -- putStrLn $ "eitherOutline " ++ (show pkg) ++ " " ++ show eitherOutline
       case eitherOutline of
         Left _ ->
           do  --Reporting.report key Reporting.DBroken
@@ -435,10 +463,13 @@ build cache depsMVar pkg (Solver.Details vsn _) f fs =
               return $ Left $ Just $ Exit.BD_BadBuild pkg vsn f
 
         Right (Outline.Pkg (Outline.PkgOutline _ _ _ _ exposed deps _ _)) ->
-          do  allDeps <- readMVar depsMVar
-              -- because `deps` only contains a range of versions, we need to find a valid version number
+          do  
+              -- `readMVar` is concurrent, all `build` threads can get it at the same time
+              allDeps <- readMVar depsMVar
+              -- putStrLn $  "allDeps" ++ show (Map.keys allDeps)
+              -- but we don't need all deps, just the ones that this package we want to build now needs
               directDeps <- traverse readMVar (Map.intersection allDeps deps)
-              putStrLn ("directDeps: " ++ show directDeps)
+              putStrLn ("build " ++ show pkg ++ " with directDeps: " ++ show directDeps)
               case sequence directDeps of
                 Left _ ->
                   do  --Reporting.report key Reporting.DBroken
@@ -453,26 +484,39 @@ build cache depsMVar pkg (Solver.Details vsn _) f fs =
                           exposedDict = Map.fromKeys (\_ -> ()) (Outline.flattenExposed exposed)
                       docsStatus <- getDocsStatus cache pkg vsn
                       mvar <- newEmptyMVar
+                      -- Map.Map ModuleName.Raw (MVar (Maybe Status))
                       mvars <- Map.traverseWithKey (const . fork . crawlModule foreignDeps mvar pkg src docsStatus) exposedDict
-                      putMVar mvar mvars
+                      putStrLn $ "build " ++ show pkg ++ " crawled Modules for " ++ show (Map.keys mvars)
+                      putMVar mvar mvars  
+                      -- waits until all threads can be read from?
                       mapM_ readMVar mvars
+                      -- gathers all own modules
                       maybeStatuses <- traverse readMVar =<< readMVar mvar
                       case sequence maybeStatuses of
+                        -- just to ensure that we have a non-empty list
                         Nothing ->
                           do  --Reporting.report key Reporting.DBroken
+                            traceShow "failed1" $
                               return $ Left $ Just $ Exit.BD_BadBuild pkg vsn f
 
                         Just statuses ->
+                          -- All modules inside this package
+                          -- statuses :: Map.Map ModuleName.Raw Status
                           do  rmvar <- newEmptyMVar
+                              putStrLn $ "build " ++ show pkg ++ " -> Just statuses " ++ show (Map.keys statuses)
                               rmvars <- traverse (fork . compile pkg rmvar) statuses
                               putMVar rmvar rmvars
+                              -- wait until all modules in this package were compiled individually
                               maybeResults <- traverse readMVar rmvars
                               case sequence maybeResults of
                                 Nothing ->
                                   do  --Reporting.report key Reporting.DBroken
+                                    traceShow ("failed2 " ++ ("build " ++ show pkg ++ show vsn)) $
                                       return $ Left $ Just $ Exit.BD_BadBuild pkg vsn f
 
                                 Just results ->
+                                  -- after all modules in this package were compiled, we can write `artifacts.dat`
+                                  -- results :: Map.Map ModuleName.Raw Ulm.Details.Result
                                   let
                                     path = Ulm.Paths.package cache pkg vsn </> "artifacts.dat"
                                     ifaces = gatherInterfaces exposedDict results
@@ -568,6 +612,17 @@ data Status
   | SKernelLocal [Kernel.Chunk]
   | SKernelForeign
 
+instance Show Status where
+  show status =
+    case status of
+      SLocal docsStatus map srcModule ->
+        "SLocal " ++ show (Src.getName srcModule)
+      SForeign interface ->
+        "SForeign " ++ show (I._home interface)
+      SKernelLocal chunks ->
+        "SKernelLocal " ++ show (length chunks)
+      SKernelForeign ->
+        "SKernelForeign"
 
 crawlModule :: Map.Map ModuleName.Raw ForeignInterface -> MVar StatusDict -> Pkg.Name -> FilePath -> DocsStatus -> ModuleName.Raw -> IO (Maybe Status)
 crawlModule foreignDeps mvar pkg src docsStatus name =
@@ -653,19 +708,19 @@ data Result
 
 
 compile :: Pkg.Name -> MVar (Map.Map ModuleName.Raw (MVar (Maybe Result))) -> Status -> IO (Maybe Result)
-compile pkg mvar status =
-  case status of
+compile pkg mvarForeignInterfaces status =
+  case traceShow ("compile " ++ show pkg ++ " status: " ++ show status) status of
     SLocal docsStatus deps modul ->
-      do  resultsDict <- readMVar mvar
+      do  resultsDict <- readMVar mvarForeignInterfaces
           maybeResults <- traverse readMVar (Map.intersection resultsDict deps)
           case sequence maybeResults of
             Nothing ->
-              return Nothing
+              return (traceShow "sequence maybeResults is Nothing" Nothing)
 
             Just results ->
               case Compile.compile pkg (Map.mapMaybe getInterface results) modul of
-                Left _ ->
-                  return Nothing
+                Left err ->
+                  return (traceShow ("Compile.compile err " ++ show err) Nothing)
 
                 Right (Compile.Artifacts canonical annotations objects) ->
                   let
