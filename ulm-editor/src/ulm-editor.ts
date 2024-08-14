@@ -36,11 +36,17 @@ export function init(sourceFile: string) {
     node: document.getElementById("main"),
     flags: {
       file: sourceFile,
+      theme: prefersDarkTheme() ? "dark" : "light",
     },
   });
 
   UlmEditor.elmApp = main;
   window.customElements.define("ulm-editor", UlmEditor);
+}
+
+function prefersDarkTheme(): boolean {
+  // TODO load/store in LocalStorage
+  return window?.matchMedia?.("(prefers-color-scheme:dark)")?.matches;
 }
 
 let ulm: Compiler | null = null;
@@ -129,7 +135,7 @@ async function compile(file: string) {
 }
 
 class UlmEditor extends HTMLElement {
-  static observedAttributes = ["file"];
+  static observedAttributes = ["file", "theme"];
   static elmApp: ElmApp | null = null;
 
   private _source: string = "";
@@ -203,7 +209,6 @@ class UlmEditor extends HTMLElement {
 
   disconnectedCallback() {
     this._editor = null;
-    this._theme = "light";
     this._source = "";
     this._isCompiling = false;
     this._lastBuild = null;
@@ -222,6 +227,10 @@ class UlmEditor extends HTMLElement {
             this._editor?.setValue(content);
           });
         }
+        break;
+      case "theme":
+        this._editor?.setOption("theme", newValue);
+
         break;
       default:
         console.warn(`TODO handle attribute "${name}" change`);

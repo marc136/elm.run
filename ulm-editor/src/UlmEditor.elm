@@ -14,6 +14,7 @@ import InteropDefinitions
 import InteropPorts
 import Json.Decode
 import Maybe.Extra
+import Theme exposing (Theme)
 import TsJson.Decode
 
 
@@ -47,6 +48,7 @@ type alias EditorModel =
     , visibleProgram : Maybe ObjectUrl
     , outputView : OutputView
     , outputPreference : OutputPreference
+    , theme : Theme
     }
 
 
@@ -80,6 +82,7 @@ init json =
                 , visibleProgram = Nothing
                 , outputView = ViewIntroduction
                 , outputPreference = PreferProblems
+                , theme = flags.theme
                 }
             , Cmd.none
             )
@@ -101,6 +104,7 @@ type Msg
     | InsertExample Example
     | PreferForOutput OutputPreference
     | SwitchProgram
+    | SelectedTheme Theme
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -125,7 +129,7 @@ update msg global =
         ( CompiledNewDocument url, Editor model ) ->
             let
                 ( visibleProgram, outputView ) =
-                    if model.lastCompilation == NotStarted then
+                    if model.isCompiling && model.lastCompilation == NotStarted then
                         ( Just url, ViewCompiled )
 
                     else
@@ -193,6 +197,11 @@ update msg global =
             , revokeObjectUrl model.visibleProgram
             )
 
+        ( SelectedTheme theme, Editor model ) ->
+            ( Editor { model | theme = theme }
+            , Cmd.none
+            )
+
 
 revokeObjectUrl : Maybe ObjectUrl -> Cmd msg
 revokeObjectUrl maybeUrl =
@@ -233,9 +242,11 @@ viewEditor : EditorModel -> Html Msg
 viewEditor model =
     Html.main_
         [ Html.Attributes.id "main"
+        , Theme.toAttribute model.theme
         ]
         [ Html.node "ulm-editor"
             [ Html.Attributes.attribute "file" model.file
+            , Theme.toAttribute model.theme
             , onCustomEvent compileResultEvent compileResultDecoder
 
             -- , onCustomEvent compileResultEvent (InteropDefinitions.interop.toElm |> TsJson.Decode.decoder |> ToElm )
@@ -298,6 +309,13 @@ viewOutput model =
 
             _ ->
                 Html.Extra.nothing
+        , if model.theme == Theme.Dark then
+            Html.button [ Html.Events.onClick <| SelectedTheme Theme.Light ]
+                [ Html.text <| Theme.toString Theme.Light ]
+
+          else
+            Html.button [ Html.Events.onClick <| SelectedTheme Theme.Dark ]
+                [ Html.text <| Theme.toString Theme.Dark ]
         ]
     , Html.Keyed.node "article" [] <| viewCompiled model
     ]

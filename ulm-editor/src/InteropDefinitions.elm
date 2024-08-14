@@ -8,6 +8,7 @@ module InteropDefinitions exposing
     )
 
 import Json.Decode
+import Theme exposing (Theme)
 import TsJson.Decode as TsDecode exposing (Decoder)
 import TsJson.Encode as TsEncode exposing (Encoder)
 
@@ -42,6 +43,7 @@ type CompileResult
 
 type alias Flags =
     { file : String
+    , theme : Theme
     }
 
 
@@ -55,6 +57,7 @@ fromElm =
 
                 RevokeObjectUrl url ->
                     vRevokeUrl url
+
                 ReplaceCodeWith source ->
                     vReplaceCodeWith source
         )
@@ -106,9 +109,11 @@ compileResult =
 
 flags : Decoder Flags
 flags =
-    TsDecode.map
-        (\file ->
+    TsDecode.map2
+        (\file theme ->
             { file = file
+            , theme = theme
             }
         )
         (TsDecode.field "file" TsDecode.string)
+        (TsDecode.field "theme" Theme.decoder)
