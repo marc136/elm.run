@@ -13,7 +13,6 @@ import Elm.Interface qualified as I
 import Elm.ModuleName qualified as ModuleName
 import Elm.Package qualified as Pkg
 import Elm.Version qualified as V
-import GHC.Wasm.Prim
 import System.Directory qualified as Dir
 import System.FilePath ((</>))
 import System.IO qualified as IO

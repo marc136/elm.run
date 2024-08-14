@@ -48,21 +48,76 @@ extra-doc-files:    CHANGELOG.md
 -- Extra source files to be distributed with the package, such as examples, or a tutorial module.
 -- extra-source-files:
 
+common shared
+    ghc-options:        -Wall
+    default-language:   GHC2021
+    build-depends:      base >= 4 && < 5 
+
+test-suite test
+    import:         shared
+    -- The interface type and version of the test suite.
+    type:           exitcode-stdio-1.0
+    hs-source-dirs: test
+    -- The entrypoint to the test suite.
+    main-is:        Test.hs
+    build-depends:
+        ulm,
+        tasty >= 1.5,
+        tasty-hunit,
+
 executable ulm
+    import:         shared
     ghc-options:
         -Wall -Wunused-packages -no-hs-main -optl-mexec-model=reactor
         "-optl-Wl,--export=hs_init,--export=wip,--export=buildArtifacts,--export=compile,--export=make"
 
     -- .hs or .lhs file containing the Main module.
-    main-is:          Ulm.hs
+    main-is:        Ulm.hs
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
     build-depends:
-        base ^>=4.20.0.0,
-        -- dependencies part of ghc but hidden without listing them
+        ulm,
+        binary,
+        bytestring,
+        containers,
+        directory,
+        filepath,
+        -- filelock, -- linker fails on wasm32-wasi
+        ghc-prim,
+        mtl,
+        scientific,
+        utf8-string,
+        vector,
+        -- other dependencies
+        edit-distance,
+        -- needed for module Reporting.Doc
+        ansi-terminal,
+        ansi-wl-pprint >= 0.6.8 && < 0.7,
+
+    -- Cannot run tests with `wasm32-wasi-cabal` but but default `cabal test` chokes on the
+    -- `ghc-experimental` dependency, so I only include it when building for `wasm32` arch
+    if arch(wasm32)
+        -- Needed for GHC.Wasm.Prim
+        build-depends: ghc-experimental ^>=0.1.0.0
+
+    -- Directories containing source files.
+    hs-source-dirs:
+        ./,
+        ../elm-compiler-wasm/compiler/src,
+        ../elm-compiler-wasm/builder/src,
+        -- compiler/src,
+        -- builder/src,
+        --worker/src,
+
+    -- Base language which the package is written in.
+    default-language: GHC2021
+
+library
+    import:         shared
+    build-depends:
         binary,
         bytestring,
         containers,
@@ -77,12 +132,11 @@ executable ulm
         -- other dependencies
         edit-distance,
         -- Needed for GHC.Wasm.Prim
-        ghc-experimental ^>=0.1.0.0,
+        -- ghc-experimental ^>=0.1.0.0,
         -- needed for module Reporting.Doc
         ansi-terminal,
         ansi-wl-pprint >= 0.6.8 && < 0.7,
 
-    -- Directories containing source files.
     hs-source-dirs:
         ./,
         ../elm-compiler-wasm/compiler/src,
@@ -91,8 +145,22 @@ executable ulm
         -- builder/src,
         --worker/src,
 
-    -- Base language which the package is written in.
-    default-language: GHC2021
+    -- Modules exported by the library.
+    exposed-modules:
+        Ulm.Build
+        Ulm.Deps.Registry
+        Ulm.Deps.Solver
+        Ulm.Details
+        Ulm.Generate
+        Ulm.Make
+        Ulm.Paths
+        Ulm.ReadArtifacts
+        Ulm.Reporting
+        Ulm.Reporting.Error
+        Ulm.Reporting.Exit
+        Ulm.Repl
+
+        Ulm.Repl.Lib
 
     -- Modules included in this executable, other than Main.
     other-modules:
@@ -193,18 +261,6 @@ executable ulm
         Type.UnionFind
 
         -- Files inside ulm-wasm
-        Ulm.Build
-        Ulm.Deps.Registry
-        Ulm.Deps.Solver
-        Ulm.Details
-        Ulm.Generate
-        Ulm.Make
-        Ulm.Paths
-        Ulm.ReadArtifacts
-        Ulm.Reporting
-        Ulm.Reporting.Error
-        Ulm.Reporting.Exit
-        Ulm.Repl
 
         -- wip
         Elm.Constraint
