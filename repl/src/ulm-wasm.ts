@@ -8,6 +8,8 @@ import ulmJs from '../../www/generated/ulm'
 export interface Compiler {
     compile: (source: string) => Promise<CompileResult>
     make: (filepath: string) => Promise<CompileResult>
+    // TODO
+    repl: (code: string) => Promise<string>
 }
 
 // // CompilerReport in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs

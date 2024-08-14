@@ -68,6 +68,7 @@ executable ulm
         containers,
         directory,
         filepath,
+        -- filelock, -- linker fails on wasm32-wasi
         ghc-prim,
         mtl,
         scientific,
@@ -203,6 +204,7 @@ executable ulm
         Ulm.Reporting
         Ulm.Reporting.Error
         Ulm.Reporting.Exit
+        Ulm.Repl
 
         -- wip
         Elm.Constraint

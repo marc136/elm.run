@@ -29,6 +29,7 @@ import Ulm.Details qualified
 import Ulm.ReadArtifacts qualified as ReadArtifacts
 import Ulm.Reporting qualified
 import Ulm.Reporting.Exit qualified as Exit
+import Ulm.Repl qualified
 
 main :: IO ()
 main = mempty
@@ -42,7 +43,8 @@ wipJs jsString =
   let str = Wasm.fromJSString jsString
       source = BSU.fromString $ trace "parsing" $ traceShowId str
    in do
-        fmap encodeJson Ulm.Details.wipJson
+        -- fmap encodeJson Ulm.Details.wipJson
+        fmap encodeJson $ Ulm.Repl.read str
 
 foreign export javascript "buildArtifacts" buildArtifacts :: IO ()
 

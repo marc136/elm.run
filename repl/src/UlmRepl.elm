@@ -1,9 +1,8 @@
-module UlmEditor exposing (main)
+module UlmRepl exposing (main)
 
 import Browser
 import Data.Problem
 import Elm.Error
-import Examples exposing (Example)
 import Heroicons.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes
@@ -36,9 +35,11 @@ main =
 -- MODEL
 
 
-type Model
-    = InitFailure Json.Decode.Error
-    | Editor EditorModel
+type alias Model =
+    { history : List ( InteropDefinitions.Input, InteropDefinitions.Output )
+    , theme : Theme
+    , hintBelowInput : Maybe InteropDefinitions.Output
+    }
 
 
 type alias EditorModel =
@@ -73,22 +74,39 @@ type OutputPreference
 
 init : Json.Decode.Value -> ( Model, Cmd Msg )
 init json =
-    case InteropPorts.decodeFlags json of
-        Ok flags ->
-            ( Editor
-                { file = flags.file
-                , isCompiling = False
-                , lastCompilation = NotStarted
-                , visibleProgram = Nothing
-                , outputView = ViewIntroduction
-                , outputPreference = PreferProblems
-                , theme = flags.theme
+    let
+        flags =
+            InteropPorts.decodeFlags json
+                |> Result.withDefault InteropDefinitions.default
+    in
+    ( { history =
+            [ ( "abc = 123"
+              , { name = Just "abc"
+                , type_ = "number"
+                , value = "\u{001B}[95m123\u{001B}[0m"
                 }
-            , Cmd.none
-            )
-
-        Err err ->
-            ( InitFailure err, Cmd.none )
+              )
+            , ( "String.length"
+              , { name = Nothing
+                , type_ = "String -> Int"
+                , value = "\u{001B}[36m<function>\u{001B}[0m"
+                }
+              )
+            ]
+      , theme = flags.theme
+      , hintBelowInput =
+            -- { name = Just "abc"
+            -- , type_ = "number"
+            -- , value = "\u{001B}[95m123\u{001B}[0m"
+            -- }
+            { name = Nothing
+            , type_ = "String -> Int"
+            , value = "\u{001B}[36m<function>\u{001B}[0m"
+            }
+                |> Just
+      }
+    , Cmd.none
+    )
 
 
 
@@ -97,117 +115,33 @@ init json =
 
 type Msg
     = NoOp
-    | CompiledNewDocument String
-    | CompilationFailed Elm.Error.Error
+      -- | CompilationFailed Elm.Error.Error
     | TriggeredCompile
     | ToElm (Result Json.Decode.Error InteropDefinitions.ToElm)
-    | InsertExample Example
-    | PreferForOutput OutputPreference
-    | SwitchProgram
     | SelectedTheme Theme
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg global =
-    case ( msg, global ) of
-        ( NoOp, _ ) ->
-            ( global, Cmd.none )
+update msg model =
+    case Debug.log "update msg" msg of
+        NoOp ->
+            ( model, Cmd.none )
 
-        ( _, InitFailure _ ) ->
-            ( global, Cmd.none )
+        ToElm (Err _) ->
+            ( model, Cmd.none )
 
-        ( ToElm (Err _), _ ) ->
-            ( global, Cmd.none )
+        ToElm (Ok _) ->
+            ( model, Cmd.none )
 
-        -- ( ToElm (Ok OnCompileResult), Editor model ) ->
-        --     ( Editor { model | lastDocument = Just url }
-        --     , model.visibleProgram |> revokeObjectUrl
-        --     )
-        ( ToElm (Ok _), _ ) ->
-            ( global, Cmd.none )
-
-        ( CompiledNewDocument url, Editor model ) ->
-            let
-                ( visibleProgram, outputView ) =
-                    if model.isCompiling && model.lastCompilation == NotStarted then
-                        ( Just url, ViewCompiled )
-
-                    else
-                        ( model.visibleProgram
-                            |> Maybe.withDefault url
-                            |> Just
-                        , model.outputView
-                        )
-            in
-            ( Editor
-                { model
-                    | lastCompilation = Success url
-                    , isCompiling = False
-                    , visibleProgram = visibleProgram
-                    , outputView = outputView
-                }
-            , model.visibleProgram |> revokeObjectUrl
-            )
-
-        ( CompilationFailed error, Editor model ) ->
-            ( Editor
-                { model
-                    | lastCompilation = Failed <| Data.Problem.toIndexedProblems error
-                    , isCompiling = False
-                }
+        SelectedTheme theme ->
+            ( { model | theme = theme }
             , Cmd.none
             )
 
-        ( TriggeredCompile, Editor model ) ->
-            ( Editor { model | isCompiling = True, lastCompilation = NotStarted }
-            , InteropPorts.fromElm <| InteropDefinitions.TriggerCompile model.file
+        TriggeredCompile ->
+            ( model
+            , InteropPorts.fromElm InteropDefinitions.TriggerCompile
             )
-
-        ( InsertExample example, Editor model ) ->
-            ( Editor
-                { model
-                    | lastCompilation = NotStarted
-                    , visibleProgram = Nothing
-                    , outputView = ViewCompiled
-                }
-            , Cmd.batch
-                [ Examples.getCode example
-                    |> InteropDefinitions.ReplaceCodeWith
-                    |> InteropPorts.fromElm
-                , model.visibleProgram |> revokeObjectUrl
-                ]
-            )
-
-        ( PreferForOutput preference, Editor model ) ->
-            ( Editor { model | outputPreference = preference }
-            , Cmd.none
-            )
-
-        ( SwitchProgram, Editor model ) ->
-            ( Editor
-                { model
-                    | visibleProgram =
-                        case model.lastCompilation of
-                            Success url ->
-                                Just url
-
-                            _ ->
-                                Nothing
-                }
-            , revokeObjectUrl model.visibleProgram
-            )
-
-        ( SelectedTheme theme, Editor model ) ->
-            ( Editor { model | theme = theme }
-            , Cmd.none
-            )
-
-
-revokeObjectUrl : Maybe ObjectUrl -> Cmd msg
-revokeObjectUrl maybeUrl =
-    maybeUrl
-        |> Maybe.map (InteropDefinitions.RevokeObjectUrl >> InteropPorts.fromElm)
-        |> Maybe.withDefault Cmd.none
 
 
 
@@ -230,120 +164,66 @@ type OutputView
 
 view : Model -> Html Msg
 view model =
-    case model of
-        InitFailure err ->
-            Html.pre [] [ Json.Decode.errorToString err |> Html.text ]
-
-        Editor model_ ->
-            viewEditor model_
-
-
-viewEditor : EditorModel -> Html Msg
-viewEditor model =
     Html.main_
         [ Html.Attributes.id "main"
         , Theme.toAttribute model.theme
         ]
-        [ Html.div [ Html.Attributes.class "logs" ]
-            [ Html.p [] [ Html.text "TODO print logs"]]
+        [ Html.p [ Html.Attributes.style "margin" "0px" ]
+            [ Html.span []
+                [ Html.text "> String.length"
+                , Html.span [ Html.Attributes.style "color" "rgb(51, 187, 200)" ]
+                    [ Html.text "<function>" ]
+                , Html.span [ Html.Attributes.style "color" "rgb(203, 204, 205)" ]
+                    [ Html.text ": String -> Int" ]
+                ]
+            ]
+        , Html.ul [ Html.Attributes.class "logs" ] <|
+            List.map
+                (\( input, output ) ->
+                    Html.li []
+                        [ Html.span [] [ Html.text input ]
+                        , Html.Extra.viewMaybe
+                            (\name ->
+                                Html.span [] [ Html.text name ]
+                            )
+                            output.name
+                        , Html.span [] [ Html.text output.value ]
+                        , Html.span [] [ Html.text output.type_ ]
+                        ]
+                )
+                model.history
         , Html.node "ulm-editor"
-            [ Html.Attributes.attribute "file" model.file
-            , Theme.toAttribute model.theme
+            [ Theme.toAttribute model.theme
             , onCustomEvent compileResultEvent compileResultDecoder
 
             -- , onCustomEvent compileResultEvent (InteropDefinitions.interop.toElm |> TsJson.Decode.decoder |> ToElm )
             ]
             []
         , Html.menu []
-        [ Html.button
-            [ Html.Events.onClick TriggeredCompile
-            , Html.Attributes.title "Run code"
-            ]
-            [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
-            , Html.text "Run code"
-            ]
-        , Html.button
-            [ Html.Attributes.class "circle-icon"
-            , Html.Events.onClick TriggeredCompile
-            , Html.Attributes.title "compile"
-            , Html.Attributes.attribute "aria-label" "compile"
-            ]
-            [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
-            ]
-        , if model.theme == Theme.Dark then
-            Html.button [ Html.Events.onClick <| SelectedTheme Theme.Light ]
-                [ Html.text <| Theme.toString Theme.Light ]
-
-          else
-            Html.button [ Html.Events.onClick <| SelectedTheme Theme.Dark ]
-                [ Html.text <| Theme.toString Theme.Dark ]
-        , Html.div [ Html.Attributes.id "output" ] <|
-            viewOutput model
-        ]
-
-
-viewOutput : EditorModel -> List (Html Msg)
-viewOutput model =
-    let
-        programIsVisible =
-            isProgramVisible model
-    in
-    [ Html.menu []
-        [ Html.button
-            [ Html.Events.onClick TriggeredCompile
-            , Html.Attributes.title "Run code"
-            ]
-            [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
-            , Html.text "Run code"
-            ]
-        , Html.button
-            [ Html.Attributes.class "circle-icon"
-            , Html.Events.onClick TriggeredCompile
-            , Html.Attributes.title "compile"
-            , Html.Attributes.attribute "aria-label" "compile"
-            ]
-            [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
-            ]
-        , case ( model.lastCompilation, model.visibleProgram ) of
-            ( Success newUrl, Just oldUrl ) ->
-                if newUrl /= oldUrl then
-                    Html.button
-                        [ Html.Events.onClick SwitchProgram ]
-                        [ Html.text "show new program" ]
-
-                else
-                    Html.Extra.nothing
-
-            _ ->
-                Html.Extra.nothing
-        , Html.Extra.viewIf (not programIsVisible) <|
-            Html.button
-                [ Html.Events.onClick <| PreferForOutput PreferProgram
+            [ Html.button
+                [ Html.Events.onClick TriggeredCompile
+                , Html.Attributes.title "Run code"
                 ]
-                [ Html.text "show program" ]
-        , case ( programIsVisible, model.lastCompilation ) of
-            ( True, Failed [ _ ] ) ->
-                Html.button
-                    [ Html.Events.onClick <| PreferForOutput PreferProblems ]
-                    [ Html.text "show problem" ]
+                [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
+                , Html.text "Run code"
+                ]
+            , Html.button
+                [ Html.Attributes.class "circle-icon"
+                , Html.Events.onClick TriggeredCompile
+                , Html.Attributes.title "compile"
+                , Html.Attributes.attribute "aria-label" "compile"
+                ]
+                [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
+                ]
+            , if model.theme == Theme.Dark then
+                Html.button [ Html.Events.onClick <| SelectedTheme Theme.Light ]
+                    [ Html.text <| Theme.toString Theme.Light ]
 
-            ( True, Failed _ ) ->
-                Html.button
-                    [ Html.Events.onClick <| PreferForOutput PreferProblems ]
-                    [ Html.text "show problems" ]
-
-            _ ->
-                Html.Extra.nothing
-        , if model.theme == Theme.Dark then
-            Html.button [ Html.Events.onClick <| SelectedTheme Theme.Light ]
-                [ Html.text <| Theme.toString Theme.Light ]
-
-          else
-            Html.button [ Html.Events.onClick <| SelectedTheme Theme.Dark ]
-                [ Html.text <| Theme.toString Theme.Dark ]
+              else
+                Html.button [ Html.Events.onClick <| SelectedTheme Theme.Dark ]
+                    [ Html.text <| Theme.toString Theme.Dark ]
+            ]
         ]
-    , Html.Keyed.node "article" [] <| viewCompiled model
-    ]
 
 
 viewCompiled : EditorModel -> List ( String, Html Msg )
@@ -394,14 +274,12 @@ isProgramVisible model =
 viewIntroduction : Html Msg
 viewIntroduction =
     Html.div [ Html.Attributes.class "notification" ]
-        [ Html.h1 [] [ Html.text "Elm Editor" ]
+        [ Html.h1 [] [ Html.text "Elm Repl" ]
         , Html.p [] [ Html.text "Write and compile code in your browser!" ]
         , Html.p []
             [ Html.text "Not sure how to get started?"
             , Html.br [] []
-            , Html.text "Maybe start with one of these examples:"
             ]
-        , Html.ul [] examples
         , Html.p []
             [ Html.text "Check out "
             , Html.a [ Html.Attributes.href "https://guide.elm-lang.org/" ] [ Html.text "the official guide" ]
@@ -410,23 +288,6 @@ viewIntroduction =
             , Html.text " maintained by the Elm community."
             ]
         ]
-
-
-examples : List (Html Msg)
-examples =
-    List.map
-        (\( name, example ) ->
-            Html.li [] [ Html.button [ Html.Events.onClick <| InsertExample example ] [ Html.text name ] ]
-        )
-        Examples.list
-        ++ [ Html.li []
-                [ Html.a
-                    [ Html.Attributes.href "https://elm-lang.org/examples"
-                    , Html.Attributes.target "_blank"
-                    ]
-                    [ Html.text "More!" ]
-                ]
-           ]
 
 
 onCustomEvent : String -> Json.Decode.Decoder a -> Html.Attribute a
@@ -457,9 +318,11 @@ compileResultDecoder2 : String -> Json.Decode.Decoder Msg
 compileResultDecoder2 type_ =
     case type_ of
         "success" ->
-            Json.Decode.map CompiledNewDocument
-                (Json.Decode.field "url" Json.Decode.string)
+            -- Json.Decode.map CompiledNewDocument
+            -- (Json.Decode.field "url" Json.Decode.string)
+            Debug.todo "ok decoder"
 
         _ ->
             -- Json.Decode.fail <| compileResultEvent ++ " with type='" ++ type_ ++ "' is not supported"
-            Json.Decode.map CompilationFailed Elm.Error.decoder
+            -- Json.Decode.map CompilationFailed Elm.Error.decoder
+            Debug.todo "err decoder"

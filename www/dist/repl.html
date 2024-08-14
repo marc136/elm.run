@@ -1,0 +1,53 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Try Elm!</title>
+  <link rel="shortcut icon" sizes="16x16 32x32 48x48 64x64 128x128 256x256" href="/favicon.ico">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description"
+    content="Try out Elm: A delightful language with friendly error messages, great performance, small assets, and no runtime exceptions.">
+  <!-- <link rel="stylesheet" href="./css/pico.violet.min.css" /> -->
+  <link rel="stylesheet" href="./editor/styles.css" />
+  <link rel="stylesheet" href="./repl/ulm-repl.css" />
+</head>
+
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
+    <symbol id="logo" viewBox="-300 -300 600 600" fill="currentColor">
+      <g transform="scale(1 -1)">
+        <polygon points="-280,-90 0,190 280,-90" transform="translate(0 -210) rotate(0)"></polygon>
+        <polygon points="-280,-90 0,190 280,-90" transform="translate(-210 0) rotate(-90)"></polygon>
+        <polygon points="-198,-66 0,132 198,-66" transform="translate(207 207) rotate(-45)"></polygon>
+        <polygon points="-130,0 0,-130 130,0 0,130" transform="translate(150 0) rotate(0)"></polygon>
+        <polygon points="-191,61 69,61 191,-61 -69,-61" transform="translate(-89 239) rotate(0)"></polygon>
+        <polygon points="-130,-44 0,86  130,-44" transform="translate(0 106) rotate(-180)"></polygon>
+        <polygon points="-130,-44 0,86  130,-44" transform="translate(256 -150) rotate(-270)"></polygon>
+      </g>
+    </symbol>
+  </svg>
+
+  <main id="main"><noscript>You need to allow JavaScript execution</noscript></main>
+  <script>
+    console.info('Enabling hot reload with esbuild');
+    new EventSource('/esbuild').addEventListener('change', () => location.reload());
+  </script>
+  <script src="./editor/codemirror.js"></script>
+  <!-- <script src="./editor/custom-elements.js"></script> -->
+  <script src="./repl/ulm-repl.js"></script>
+  <script type="module">
+    import { init, writeFile, printFs } from './repl/ulm-repl.mjs'
+    // TODO import Elm?
+    const sourceFile = '/src/Example.elm'
+    writeFile(sourceFile, `isGreater5 : number -> Bool
+isGreater5 number =
+    number > 5
+`)
+    writeFile(sourceFile, 'abc = 123\n')
+    init(sourceFile)
+  </script>
+
+</body>
+
+</html>

@@ -53,3 +53,34 @@ See ../elm-compiler-wasm/worker/src/Endpoint/Repl.hs to get started
 
 In the meantime, elmrepl.de has gotten a lot faster (it is not sponsored by netcup.de).
 
+---
+
+# Behavior
+
+When loading the page, it shows an empty input area.
+
+Like the Elm REPL, two empty line breaks will force compilation.\
+The same should happen after Ctrl+Enter.
+
+When entering text, it will immediately try to evaluate the code.\
+Input should be debounced, and it should await compilation before starting a new one.\
+If a non-error result is reached, it will be rendered below the input area (maybe in more muted colors to indicate that it is not finished?)\
+I would also like to see partially applied functions there, `abc = List.map (\i -> i + 1)` should print
+
+```json
+{
+  "name": "abc",
+  "value": "\u001b[36m<function>\u001b[0m",
+  "type": "List number -> List number"
+}
+```
+
+And if the user continues and enters a list of numbers, it should then fully run and display its content.
+
+## Technical Behavior
+
+ulm-repl.ts initializes the wasm compiler and downloads the core and json packages.
+
+The `ReplInput` custom element renders codemirror and emits the `compiler` events `loading`, `ready`, `error: Error`.\
+Elm will maybe get a button to trigger compilation, in this case I will either create a port msg or set a property (attribute would need revoking).\
+But for now, the custom element will inform when Elm needs to store/show something.

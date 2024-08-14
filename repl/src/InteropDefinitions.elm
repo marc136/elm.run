@@ -2,8 +2,11 @@ module InteropDefinitions exposing
     ( CompileResult
     , Flags
     , FromElm(..)
+    , Input
+    , Output
     , ToElm(..)
     , compileResult
+    , default
     , interop
     )
 
@@ -26,13 +29,20 @@ interop =
 
 
 type FromElm
-    = TriggerCompile String
-    | RevokeObjectUrl String
-    | ReplaceCodeWith String
+    = TriggerCompile
 
 
 type ToElm
     = OnCompileResult CompileResult
+    | Executed { input : Input, output : Output }
+
+
+type alias Input =
+    String
+
+
+type alias Output =
+    { name : Maybe String, value : String, type_ : String }
 
 
 type CompileResult
@@ -47,25 +57,22 @@ type alias Flags =
     }
 
 
+default : Flags
+default =
+    { file = ""
+    , theme = Theme.Light
+    }
+
+
 fromElm : Encoder FromElm
 fromElm =
     TsEncode.union
-        (\vTriggerCompile vRevokeUrl vReplaceCodeWith value ->
+        (\vTriggerCompile value ->
             case value of
-                TriggerCompile filepath ->
-                    vTriggerCompile filepath
-
-                RevokeObjectUrl url ->
-                    vRevokeUrl url
-
-                ReplaceCodeWith source ->
-                    vReplaceCodeWith source
+                TriggerCompile ->
+                    vTriggerCompile ""
         )
         |> TsEncode.variantTagged "compile" TsEncode.string
-        |> TsEncode.variantTagged "revoke-object-url" TsEncode.string
-        -- |> TsEncode.variantTagged "revoke-object-url"
-        --     (TsEncode.object [ required "url" identity TsEncode.string ])
-        |> TsEncode.variantTagged "replace-code" TsEncode.string
         |> TsEncode.buildUnion
 
 
@@ -73,10 +80,26 @@ toElm : Decoder ToElm
 toElm =
     TsDecode.discriminatedUnion "tag"
         [ ( "compile-result", compileResultEvent )
+        , ( "executed", executedEvent )
 
         --   , TsDecode.field "detail" (TsDecode.map OnCompileResult compileResult)
         --   )
         ]
+
+
+executedEvent : Decoder ToElm
+executedEvent =
+    TsDecode.map2 (\input output -> Executed { input = input, output = output })
+        (TsDecode.field "input" TsDecode.string)
+        (TsDecode.field "output" outputDecoder)
+
+
+outputDecoder : Decoder Output
+outputDecoder =
+    TsDecode.map3 (\name value type_ -> { name = name, value = value, type_ = type_ })
+        (TsDecode.field "name" (TsDecode.maybe TsDecode.string))
+        (TsDecode.field "value" TsDecode.string)
+        (TsDecode.field "type" TsDecode.string)
 
 
 compileResultEvent : Decoder ToElm
