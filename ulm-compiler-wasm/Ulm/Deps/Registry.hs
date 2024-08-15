@@ -23,7 +23,7 @@ import qualified Elm.Version as V
 import qualified File
 -- import qualified Ulm.Reporting.Exit as Exit
 import qualified Ulm.Paths
-
+import Debug.Trace
 
 
 -- REGISTRY
@@ -51,7 +51,7 @@ data KnownVersions =
 
 read :: Ulm.Paths.PackageCache -> IO (Maybe Registry)
 read cache =
-  File.readBinary (Ulm.Paths.registry cache)
+  File.readBinary (traceShowId $ Ulm.Paths.registry cache)
 
 
 
