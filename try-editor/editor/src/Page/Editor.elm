@@ -350,8 +350,7 @@ viewNavigation model =
     , left =
         [ Ui.Navigation.elmLogo
         , Ui.Navigation.lights OnToggleLights model.isLight
-        -- TODO add package installation
-        -- , Ui.Navigation.packages OnTogglePackages model.isPackageUiOpen
+        , Ui.Navigation.packages OnTogglePackages model.isPackageUiOpen
         , Ui.Editor.viewHint model.editor
         ]
     , right =
