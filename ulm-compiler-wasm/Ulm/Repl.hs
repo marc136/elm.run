@@ -177,6 +177,7 @@ compile (Ulm.ReadArtifacts.ArtifactsForWasm interfaces objects) state@(ReplState
     do  modul <- mapLeft Error.BadSyntax $ PM.fromByteString PM.Application source
         ifaces <- mapLeft Error.BadImports $ checkImports interfaces (Src._imports modul)
         artifacts <- Compile.compile Pkg.dummyName ifaces modul
+        -- TODO store in globalReplState
         return ( modul, artifacts, objects )
   of
     Left err ->
