@@ -64,6 +64,9 @@ test-suite test
         ulm,
         tasty >= 1.5,
         tasty-hunit,
+        tasty-golden,
+        filepath,
+        bytestring,
 
 executable ulm
     import:         shared
