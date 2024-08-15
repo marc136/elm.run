@@ -19,3 +19,21 @@ The extensions (except for the `Show` implementations and helpers from Mario) wo
 - [] Download dependencies
 - [] Compile deps (see `verifyApp` fn) to `artifacts.dat` files
 - [] Port editor from `welmo` (fork of elm-lang.org/try without server communication)
+
+
+## TODO
+
+After the first editor release, I want to get back to implementing the full `Ulm.Make.elm` (see commit 6afc00a) and compile multiple user-created Elm files.
+
+## DEV:
+
+
+cd ~/code/elm/compiler-in-browser-experiment/ulm-wasm/ulm-compiler-wasm
+./init.sh
+./dev.sh
+
+cd ~/code/elm/compiler-in-browser-experiment/ulm-wasm/ulm-editor
+node dev.mjs
+
+cd ~/code/elm/compiler-in-browser-experiment/ulm-wasm/ulm-editor
+npx elm-watch hot
