@@ -247,6 +247,7 @@ data Input
   | Expr BS.ByteString
   | Skip
   | Partial String
+  -- TODO add support for multiple declarations?
   deriving (Show)
 
 
