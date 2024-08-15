@@ -136,7 +136,7 @@ fi
 
 ## GENERATE HTML
 
-mkdir -p serve/editor
+mkdir -p ../www/dist/editor
 
 ## static
 
@@ -144,7 +144,6 @@ mkdir -p serve/editor
 
 ## editor
 
-if ! [ -f serve/editor/codemirror.js ] || ! [ -f serve/editor/elm.js ] || ! [ -f serve/editor/custom-elements.js ]; then
   echo "EDITOR"
   # code mirror
   cat editor/cm/lib/codemirror.js \
@@ -158,17 +157,20 @@ if ! [ -f serve/editor/codemirror.js ] || ! [ -f serve/editor/elm.js ] || ! [ -f
       editor/cm/lib/active-line.js \
       editor/cm/addon/dialog/dialog.js \
       editor/cm/keymap/sublime.js \
-      | uglifyjs -o serve/editor/codemirror.js
+      | uglifyjs -o ../www/dist/editor/codemirror.js      
+
+if ! [ -f ../www/dist/editor/codemirror.js ] || ! [ -f ../www/dist/editor/elm.js ] || ! [ -f ../www/dist/editor/custom-elements.js ]; then
+  # echo "export default this.  CodeMirror;" >> ../w  ww/dist/editor/codemirror.mjs
 
   # custom elements
-  cat editor/code-editor.js editor/column-divider.js | uglifyjs -o serve/editor/custom-elements.js
+  cat editor/code-editor.js editor/column-divider.js | uglifyjs -o ../www/dist/editor/custom-elements.js
 
   # styles
-  cat editor/cm/lib/codemirror.css editor/editor.css > serve/editor/styles.css
+  cat editor/cm/lib/codemirror.css editor/editor.css > ../www/dist/editor/styles.css
 
   # elm
   (cd editor ; elm make src/Page/Editor.elm --optimize --output=elm.js)
-  uglifyjs editor/elm.js --compress 'pure_funcs="F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9",pure_getters,keep_fargs=false,unsafe_comps,unsafe' | uglifyjs --mangle -o serve/editor/elm.js
+  uglifyjs editor/elm.js --compress 'pure_funcs="F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9",pure_getters,keep_fargs=false,unsafe_comps,unsafe' | uglifyjs --mangle -o ../www/dist/editor/elm.js
   rm editor/elm.js
 fi
 
@@ -180,20 +182,20 @@ echo "EXAMPLES"
 #     deps="${elm%.elm}.json"
 #     subpath="${elm#examples/}"
 #     name="${subpath%.elm}"
-#     html="serve/examples/$name.html"
+#     html="../www/dist/examples/$name.html"
 
 #     if [ -f $html ] && [ $(date -r $elm +%s) -le $(date -r $html +%s) ]; then
 #         echo "Cached: $elm"
 #     else
 #         echo "Compiling: $elm"
 #         rm -f elm-stuff/*/Main.elm*
-#         elm make $elm --output=serve/examples/_compiled/$name.html > /dev/null
+#         elm make $elm --output=../www/dist/examples/_compiled/$name.html > /dev/null
 #         cat $elm | makeExampleHtml $html $name $name $deps
 #     fi
 # done
 
 ## try
 
-echo "" | makeExampleHtml serve/try.html "Try Elm!" _try "editor/examples/try.json"
-mkdir -p serve/examples/_compiled
-cp editor/splash.html serve/examples/_compiled/_try.html
+echo "" | makeExampleHtml ../www/dist/try.html "Try Elm!" _try "editor/examples/try.json"
+mkdir -p ../www/dist/examples/_compiled
+cp editor/splash.html ../www/dist/examples/_compiled/_try.html
