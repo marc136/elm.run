@@ -1,7 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Ulm.Repl
-  ( read
-  )
+module Ulm.Repl ( read, toOutcome, outcomeToJsonString, initialState, ReplState )
  where
 
 import Prelude hiding (read)
@@ -75,7 +73,11 @@ read str = do
   print outcome
   -- writeIORef globalReplState (state + 1)
   -- wip "Repl.read"
-  pure $ case outcome of
+  pure $ outcomeToJson outcome
+
+outcomeToJson :: Outcome -> Json.Encode.Value
+outcomeToJson outcome =
+  case outcome of
     NewImport name  -> encode "new-import" (show name)
     NewType name    -> encode "new-type" (show name)
     NewWork code    -> encode "new-work" (show code)
@@ -84,6 +86,11 @@ read str = do
     Failure source err ->
       Help.reportToJson $
         Help.compilerReport "/" (Error.Module N.replModule "/repl" File.zeroTime source err) []
+
+
+outcomeToJsonString :: Outcome -> LBS.LazyByteString
+outcomeToJsonString outcome =
+  B.toLazyByteString $ Json.Encode.encode $ outcomeToJson outcome
 
 
 wip str =
@@ -129,18 +136,13 @@ toOutcome artifacts state entry =
 
     prev : rev ->
       case traceShowId (categorize (Lines prev rev)) of
-        Done input ->
-          case input of
-            Import name src -> compile artifacts state (ImportEntry name src)
-            Type name src   -> compile artifacts state (TypeEntry name src)
-            Decl name src   -> compile artifacts state (DeclEntry name src)
-            Expr src        -> compile artifacts state (ExprEntry src)
-            Port            -> NoPorts
-            Skip            -> DoNothing
-
-        Continue ->
-          DoNothing
-
+        Import name src -> compile artifacts state (ImportEntry name src)
+        Type name src   -> compile artifacts state (TypeEntry name src)
+        Decl name src   -> compile artifacts state (DeclEntry name src)
+        Expr src        -> compile artifacts state (ExprEntry src)
+        Port            -> NoPorts
+        Skip            -> DoNothing
+        Partial _       -> DoNothing
 
 -- COMPILE
 
@@ -155,12 +157,21 @@ data EntryType
 compile :: Ulm.ReadArtifacts.ArtifactsForWasm -> ReplState -> EntryType -> Outcome
 compile (Ulm.ReadArtifacts.ArtifactsForWasm interfaces objects) state@(ReplState imports types decls) entryType =
   let
-    source =
+    -- source =
+    --   case entryType of
+    --     ImportEntry name src -> toByteString (state { _imports = Map.insert name (B.byteString src) imports }) OutputNothing
+    --     TypeEntry   name src -> toByteString (state { _types = Map.insert name (B.byteString src) types }) OutputNothing
+    --     DeclEntry   name src -> toByteString (state { _decls = Map.insert name (B.byteString src) decls }) (OutputDecl name)
+    --     ExprEntry        src -> toByteString state (OutputExpr src)
+    --
+    (nextState, output) =
       case entryType of
-        ImportEntry name src -> toByteString (state { _imports = Map.insert name (B.byteString src) imports }) OutputNothing
-        TypeEntry   name src -> toByteString (state { _types = Map.insert name (B.byteString src) types }) OutputNothing
-        DeclEntry   name src -> toByteString (state { _decls = Map.insert name (B.byteString src) decls }) (OutputDecl name)
-        ExprEntry        src -> toByteString state (OutputExpr src)
+        ImportEntry name src -> (state { _imports = Map.insert name (B.byteString src) imports }, OutputNothing)
+        TypeEntry   name src -> (state { _types = Map.insert name (B.byteString src) types }, OutputNothing)
+        DeclEntry   name src -> (state { _decls = Map.insert name (B.byteString src) decls }, OutputDecl name)
+        ExprEntry        src -> (state, OutputExpr src)
+    
+    source = toByteString nextState output
   in
   case
     do  modul <- mapLeft Error.BadSyntax $ PM.fromByteString PM.Application source
@@ -169,7 +180,7 @@ compile (Ulm.ReadArtifacts.ArtifactsForWasm interfaces objects) state@(ReplState
         return ( modul, artifacts, objects )
   of
     Left err ->
-      Failure source err
+      Failure source (traceShowId err)
 
     Right info ->
       case entryType of
@@ -235,6 +246,7 @@ data Input
   | Decl N.Name BS.ByteString
   | Expr BS.ByteString
   | Skip
+  | Partial String
   deriving (Show)
 
 
@@ -280,20 +292,14 @@ getFirstLine (Lines x xs) =
 -- CATEGORIZE INPUT
 
 
-data CategorizedInput
-  = Done Input
-  | Continue
-  deriving (Show)
-
-
-categorize :: Lines -> CategorizedInput
+categorize :: Lines -> Input
 categorize lines
-  | isBlank lines                    = Done Skip
+  | isBlank lines                    = Skip
   | startsWithKeyword "import" lines = attemptImport lines
   | otherwise                        = attemptDeclOrExpr lines
 
 
-attemptImport :: Lines -> CategorizedInput
+attemptImport :: Lines -> Input
 attemptImport lines =
   let
     src = linesToByteString lines
@@ -301,20 +307,13 @@ attemptImport lines =
   in
   case P.fromByteString parser (\_ _ -> ()) src of
     Right (Src.Import (A.At _ name) _ _) ->
-      Done (Import name src)
+      Import name src
 
     Left () ->
-      ifFail lines (Import (N.fromChars "ERR") src)
+      Partial "import"
 
 
-ifFail :: Lines -> Input -> CategorizedInput
-ifFail lines input =
-  if endsWithBlankLine lines
-  then Done input
-  else Continue
-
-
-attemptDeclOrExpr :: Lines -> CategorizedInput
+attemptDeclOrExpr :: Lines -> Input
 attemptDeclOrExpr lines =
   let
     src = linesToByteString lines
@@ -324,31 +323,30 @@ attemptDeclOrExpr lines =
   case P.fromByteString declParser (,) src of
     Right (decl, _) ->
       case decl of
-        PD.Value _ (A.At _ (Src.Value (A.At _ name) _ _ _)) -> Done (Decl name src)
-        PD.Union _ (A.At _ (Src.Union (A.At _ name) _ _  )) -> Done (Type name src)
-        PD.Alias _ (A.At _ (Src.Alias (A.At _ name) _ _  )) -> Done (Type name src)
-        PD.Port  _ _                                        -> Done Port
+        PD.Value _ (A.At _ (Src.Value (A.At _ name) _ _ _)) -> Decl name src
+        PD.Union _ (A.At _ (Src.Union (A.At _ name) _ _  )) -> Type name src
+        PD.Alias _ (A.At _ (Src.Alias (A.At _ name) _ _  )) -> Type name src
+        PD.Port  _ _                                        -> Port
 
     Left declPosition
       | startsWithKeyword "type" lines ->
-          ifFail lines (Type (N.fromChars "ERR") src)
+          traceShowId (Partial "type")
 
       | startsWithKeyword "port" lines ->
-          Done Port
+          Port
 
       | otherwise ->
           case P.fromByteString exprParser (,) src of
             Right _ ->
-              Done (Expr src)
+              Expr src
 
             Left exprPosition ->
+              let _ = traceShowId "Left exprPosition" in
               if exprPosition >= declPosition then
-                ifFail lines (Expr src)
+                Expr src
               else
-                case P.fromByteString annotation (\_ _ -> ()) src of
-                  Right name -> Continue
-                  Left ()    -> ifFail lines (Decl (N.fromChars "ERR") src)
-
+                Skip
+                
 
 startsWithKeyword :: [Char] -> Lines -> Bool
 startsWithKeyword keyword lines =
