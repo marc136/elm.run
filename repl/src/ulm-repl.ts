@@ -306,7 +306,6 @@ class ReplInput extends HTMLElement {
     this._isCompiling = true;
     try {
       const code = this._editor.getValue();
-      writeFile(this._file, code);
       const result = await repl(code ?? "");
       this.emit("compile-result", result);
     } catch (ex) {
