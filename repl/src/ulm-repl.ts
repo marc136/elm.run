@@ -20,6 +20,54 @@ export function init(sourceFile: string) {
     },
   });
 
+  setTimeout(() => {
+    console.warn('DEBUG: Adding history from js')
+    const entries = [
+      {
+        "input": "String.repeat",
+        "id": 16804,
+        "result": {
+          "type": "evaluated",
+          "value": {
+            "name": null,
+            "value": "\u001b[36m<function>\u001b[0m",
+            "type": "Int -> String -> String"
+          }
+        }
+      },
+      {
+        "input": "abc =\n  String.repeat",
+        "id": 17171,
+        "result": {
+          "type": "new-decl",
+          "name": "abc",
+          "value": {
+            "name": "abc",
+            "value": "\u001b[36m<function>\u001b[0m",
+            "type": "Int -> String -> String"
+          }
+        }
+      },
+      {
+        "input": "abc : Int -> String -> String\nabc =\n  String.repeat",
+        "id": 31396,
+        "result": {
+          "type": "new-decl",
+          "name": "abc",
+          "value": {
+            "name": "abc",
+            "value": "\u001b[36m<function>\u001b[0m",
+            "type": "Int -> String -> String"
+          }
+        }
+      },
+    ];
+    entries.forEach(entry => {
+      main.ports.interopToElm.send({ tag: 'evaluated', ...entry })
+    })
+
+  }, 200);
+
   ReplInput.elmApp = main;
   window.customElements.define("ulm-editor", ReplInput);
 }
