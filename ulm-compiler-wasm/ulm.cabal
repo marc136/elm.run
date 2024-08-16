@@ -59,7 +59,7 @@ test-suite test
     type:           exitcode-stdio-1.0
     hs-source-dirs: test
     -- The entrypoint to the test suite.
-    main-is:        Test.hs
+    main-is:        Main.hs
     build-depends:
         ulm,
         tasty >= 1.5,
