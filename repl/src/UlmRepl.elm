@@ -36,10 +36,15 @@ main =
 
 
 type alias Model =
-    { history : List ( InteropDefinitions.Input, InteropDefinitions.Output )
+    { history : List ( InteropDefinitions.Input, HistoryEntry )
     , theme : Theme
     , hintBelowInput : Maybe InteropDefinitions.Output
     }
+
+
+type HistoryEntry
+    = Failure (List Data.Problem.Problem)
+    | Output { maybeName : Maybe String, value : String, type_ : String }
 
 
 type alias EditorModel =
@@ -81,16 +86,18 @@ init json =
     in
     ( { history =
             [ ( "abc = 123"
-              , { name = Just "abc"
-                , type_ = "number"
-                , value = "\u{001B}[95m123\u{001B}[0m"
-                }
+              , Output
+                    { maybeName = Just "abc"
+                    , type_ = "number"
+                    , value = "\u{001B}[95m123\u{001B}[0m"
+                    }
               )
             , ( "String.length"
-              , { name = Nothing
-                , type_ = "String -> Int"
-                , value = "\u{001B}[36m<function>\u{001B}[0m"
-                }
+              , Output
+                    { maybeName = Nothing
+                    , type_ = "String -> Int"
+                    , value = "\u{001B}[36m<function>\u{001B}[0m"
+                    }
               )
             ]
       , theme = flags.theme
@@ -115,7 +122,9 @@ init json =
 
 type Msg
     = NoOp
-      -- | CompilationFailed Elm.Error.Error
+      -- | CompilationFailed { input : String, error : Elm.Error.Error }
+      -- | NewWorkDone { input: String, output: HistoryEntry }
+    | AddHistoryEntry InteropDefinitions.Input HistoryEntry
     | TriggeredCompile
     | ToElm (Result Json.Decode.Error InteropDefinitions.ToElm)
     | SelectedTheme Theme
@@ -135,6 +144,13 @@ update msg model =
 
         SelectedTheme theme ->
             ( { model | theme = theme }
+            , Cmd.none
+            )
+
+        AddHistoryEntry input output ->
+            ( { model
+                | history = ( input, output ) :: model.history
+              }
             , Cmd.none
             )
 
@@ -180,18 +196,28 @@ view model =
         , Html.ul [ Html.Attributes.class "logs" ] <|
             List.map
                 (\( input, output ) ->
+                    let
+                        rest =
+                            case output of
+                                Failure problems ->
+                                    -- TODO remove `Jump to problem` button
+                                    [ Data.Problem.viewList (\_ -> NoOp) problems ]
+
+                                Output { maybeName, value, type_ } ->
+                                    [ Html.Extra.viewMaybe
+                                        (\name ->
+                                            Html.span [] [ Html.text name ]
+                                        )
+                                        maybeName
+                                    , Html.span [] [ Html.text value ]
+                                    , Html.span [] [ Html.text type_ ]
+                                    ]
+                    in
                     Html.li []
-                        [ Html.span [] [ Html.text input ]
-                        , Html.Extra.viewMaybe
-                            (\name ->
-                                Html.span [] [ Html.text name ]
-                            )
-                            output.name
-                        , Html.span [] [ Html.text output.value ]
-                        , Html.span [] [ Html.text output.type_ ]
-                        ]
+                        (Html.span [] [ Html.text input ] :: rest)
                 )
-                model.history
+            <|
+                List.reverse model.history
         , Html.node "ulm-editor"
             [ Theme.toAttribute model.theme
             , onCustomEvent compileResultEvent compileResultDecoder
@@ -224,51 +250,6 @@ view model =
                     [ Html.text <| Theme.toString Theme.Dark ]
             ]
         ]
-
-
-viewCompiled : EditorModel -> List ( String, Html Msg )
-viewCompiled model =
-    let
-        programIsHidden =
-            not <| isProgramVisible model
-    in
-    [ ( "doc"
-      , Html.Extra.viewMaybe
-            (\blobUrl ->
-                Html.iframe
-                    [ Html.Attributes.src blobUrl
-                    , Html.Attributes.classList [ ( "hidden", programIsHidden ) ]
-                    ]
-                    []
-            )
-            model.visibleProgram
-      )
-    , ( "intro"
-      , Html.Extra.viewIf (model.outputView == ViewIntroduction) viewIntroduction
-      )
-    , ( "problems"
-      , case ( programIsHidden, model.lastCompilation ) of
-            ( True, Failed problems ) ->
-                Data.Problem.viewList (\_ -> NoOp) problems
-
-            _ ->
-                Html.Extra.nothing
-      )
-    ]
-
-
-isProgramVisible : EditorModel -> Bool
-isProgramVisible model =
-    if model.outputView == ViewIntroduction then
-        False
-
-    else
-        case model.lastCompilation of
-            Failed _ ->
-                model.outputPreference == PreferProgram
-
-            _ ->
-                True
 
 
 viewIntroduction : Html Msg
@@ -316,13 +297,40 @@ compileResultEvent =
 
 compileResultDecoder2 : String -> Json.Decode.Decoder Msg
 compileResultDecoder2 type_ =
-    case type_ of
+    case Debug.log "compileResultDecoder2" type_ of
         "success" ->
             -- Json.Decode.map CompiledNewDocument
             -- (Json.Decode.field "url" Json.Decode.string)
             Debug.todo "ok decoder"
 
+        "compile-errors" ->
+            Json.Decode.map2
+                (\input err ->
+                    Data.Problem.toIndexedProblems err
+                        |> Failure
+                        |> AddHistoryEntry input
+                )
+                (Json.Decode.field "input" Json.Decode.string)
+                Elm.Error.decoder
+
+        "new-work" ->
+            Json.Decode.map2
+                (\input output -> AddHistoryEntry input output)
+                (Json.Decode.field "input" Json.Decode.string)
+                (Json.Decode.field "output" newWorkDecoder)
+
         _ ->
             -- Json.Decode.fail <| compileResultEvent ++ " with type='" ++ type_ ++ "' is not supported"
             -- Json.Decode.map CompilationFailed Elm.Error.decoder
             Debug.todo "err decoder"
+
+
+newWorkDecoder : Json.Decode.Decoder HistoryEntry
+newWorkDecoder =
+    Json.Decode.map3
+        (\name value type_ ->
+            Output { maybeName = name, value = value, type_ = type_ }
+        )
+        (Json.Decode.field "name" (Json.Decode.maybe Json.Decode.string))
+        (Json.Decode.field "value" Json.Decode.string)
+        (Json.Decode.field "type" Json.Decode.string)

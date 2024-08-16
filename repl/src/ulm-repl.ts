@@ -73,10 +73,26 @@ async function runElmInit() {
   await loadPackageRegistry();
 }
 
-async function repl(code: string) {
+type ReplResult =
+  | { type: "new-import"; data: string /* name */ }
+  | { type: "new-type"; data: string /** name */ }
+  | { type: "new-work"; input: string; output: string }
+  | { type: "do-nothing"; data: "undefined" }
+  | { type: "no-ports"; data: "undefined" }
+  | { type: "compile-errors"; errors: unknown[]; input: string }
+  | {
+      type: "error";
+      input: string;
+      path: string;
+      title: string;
+      message: string;
+    };
+
+async function repl(code: string): Promise<ReplResult> {
   if (!ulm) {
-    console.error("Cannot compile, the WASM compiler was not loaded");
-    return;
+    const msg = "Cannot compile, the WASM compiler was not loaded";
+    console.error(msg);
+    return Promise.reject(msg);
   }
 
   // printFs();
@@ -88,18 +104,19 @@ async function repl(code: string) {
     `Finished after ${((Date.now() - start) / 1000).toFixed(3)}s`,
     compiled,
   );
-  const { result, data } = JSON.parse(compiled);
+  const result = JSON.parse(compiled);
   // dynamic import of an ESM
   // const encoded = btoa(unescape(encodeURIComponent(code)));
   // const module = await import("data:text/javascript;base64," + encoded);
   // const computed = module.default();
-
-  console.info("result:", result, { data });
-  switch (result) {
+  console.info("result:", result);
+  switch (result.type) {
     case "new-work":
       return new Promise((resolve, reject) => {
         // data is a string wrapped in a string like `'"function () {...}"'`
-        const blob = new Blob([JSON.parse(data)], { type: "text/javascript" });
+        const blob = new Blob([JSON.parse(result.data)], {
+          type: "text/javascript",
+        });
         const url = URL.createObjectURL(blob);
         const worker = new Worker(url, { type: "classic" });
 
@@ -113,8 +130,7 @@ async function repl(code: string) {
 
         worker.onmessage = function (e) {
           clearTimeout(timeout);
-          console.warn("Received: ", e.data);
-          resolve({ tag: "executed", input: code, output: data });
+          resolve({ type: "new-work", input: code, output: e.data });
         };
 
         worker.onerror = function (e) {
@@ -126,12 +142,20 @@ async function repl(code: string) {
         URL.revokeObjectURL(url);
       });
 
-    case "failure":
-      // { type: 'compile-errors', errors: object[] }
-      return { result, data: JSON.parse(JSON.parse(data)) };
+    case "new-import":
+    case "new-type":
+    case "do-nothing":
+    case "no-ports":
+      return result;
+
+    case "compile-errors":
+    case "errors":
+      result.input = code;
+      return result;
 
     default:
-      return { result, data };
+      console.error(`Cannot handle "${result.type}"`, result);
+      throw result;
   }
 }
 
@@ -147,6 +171,10 @@ class ReplInput extends HTMLElement {
   private _lastBuild: URL | null = null;
 
   connectedCallback() {
+    this.addEventListener("compile-result", (evt: CustomEvent) =>
+      console.error("compile-result", evt.detail),
+    );
+
     const sendChangeEvent = debounce(
       function () {
         console.log("sendChangeEvent");
@@ -204,10 +232,6 @@ class ReplInput extends HTMLElement {
           this.emit("compiler", { error });
         });
     });
-
-    this.addEventListener("compile-result", (evt: CustomEvent) =>
-      console.warn("change-result", evt.detail),
-    );
   }
 
   disconnectedCallback() {
@@ -284,20 +308,7 @@ class ReplInput extends HTMLElement {
       const code = this._editor.getValue();
       writeFile(this._file, code);
       const result = await repl(code ?? "");
-      if (result?.type === "success") {
-        const data = await readFileToString(result.file);
-        const html = wrapInHtml(data, result.name);
-        const blob = new Blob([html], { type: "text/html" });
-        const url = URL.createObjectURL(blob);
-        this.emit("compile-result", { type: "success", url });
-      } else if (result?.type === "failure") {
-        this.emit("compile-result", {
-          type: "failure",
-          data: JSON.parse(result.data),
-        });
-      } else {
-        this.emit("compile-result", result);
-      }
+      this.emit("compile-result", result);
     } catch (ex) {
       console.error("compile failed", ex);
     } finally {

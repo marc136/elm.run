@@ -82,10 +82,8 @@ read str = do
     DoNothing       -> encode "do-nothing" "undefined"
     NoPorts         -> encode "no-ports" "undefined"
     Failure source err ->
-        encode "failure" $ show $
-          --Json.Encode.encodeUgly $ Exit.toJson $
-          Json.Encode.encode $ Help.reportToJson $
-            Help.compilerReport "/" (Error.Module N.replModule "/repl" File.zeroTime source err) []
+      Help.reportToJson $
+        Help.compilerReport "/" (Error.Module N.replModule "/repl" File.zeroTime source err) []
 
 
 wip str =
@@ -97,7 +95,7 @@ wip str =
 
 encode name dat =
   Json.Encode.object
-    [ "result" ==> Json.Encode.chars name
+    [ "type" ==> Json.Encode.chars name
     , "data" ==> Json.Encode.chars dat
     ]
 
