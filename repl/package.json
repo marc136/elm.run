@@ -4,6 +4,7 @@
   "description": "A REPL interface for Elm",
   "main": "src/ulm-repl.ts",
   "scripts": {
+    "dev": "run-pty % node dev.mjs % elm-watch hot",
     "build": "npm run generate-ts-interop && npx elm-watch make",
     "generate-ts-interop": "elm-ts-interop --output src/UlmRepl.elm.d.ts --entrypoint UlmRepl",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -19,6 +20,7 @@
     "elm-ts-interop": "^0.0.8",
     "elm-watch": "2.0.0-beta.3",
     "esbuild": "0.23.0",
-    "esbuild-plugin-wasm": "1.1.0"
+    "esbuild-plugin-wasm": "1.1.0",
+    "run-pty": "5.0.0"
   }
 }
