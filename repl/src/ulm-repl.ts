@@ -255,6 +255,7 @@ class ReplInput extends HTMLElement {
 
     //@ts-expect-error TODO import codemirror instead
     this._editor = window.CodeMirror(this, {
+      autofocus: this.hasAttribute('autofocus') ?? false,
       mode: "elm",
       lineNumbers: false,
       keyMap: "sublime",
@@ -266,6 +267,9 @@ class ReplInput extends HTMLElement {
       tabSize: 4,
       indentWithTabs: false,
       extraKeys: {
+        Esc: (cm) => {
+          console.warn('TODO escape focus trap')
+        },
         Tab: (cm) => {
           cm.execCommand("indentMore");
         },
