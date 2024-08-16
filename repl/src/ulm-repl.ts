@@ -263,7 +263,7 @@ class ReplInput extends HTMLElement {
       autoCloseBrackets: true,
       styleActiveLine: true,
       theme: this._theme,
-      value: this._source,
+      value: this._source || '1 + 2',
       tabSize: 4,
       indentWithTabs: false,
       extraKeys: {
