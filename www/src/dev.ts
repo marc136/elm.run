@@ -298,7 +298,7 @@ type CompileResult =
 type ElmCompilerError = unknown
 
 async function loadCompiler(): Promise<Compiler> {
-    const name = 'ulm'
+    const name = 'repl'
     const wasm_url = `./${name}.wasm`;
     const js_url = `./${name}.js`;
 

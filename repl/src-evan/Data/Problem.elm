@@ -2,6 +2,7 @@ module Data.Problem exposing
     ( Location(..)
     , Problem
     , toIndexedProblems
+    , viewChunks
     , viewList
     )
 

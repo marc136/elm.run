@@ -77,6 +77,23 @@ I would also like to see partially applied functions there, `abc = List.map (\i 
 
 And if the user continues and enters a list of numbers, it should then fully run and display its content.
 
+
+## Behavior 2
+
+The input area is empty on start.
+
+When entering text, it will immediately try to evaluate the code.\
+Input should be debounced, and it should await compilation before starting a new one.\
+If a non-error result is reached, it will show
+1. the type definition above what the user entered
+2. the value below input area (maybe in more muted colors to indicate that it is not finished?)\
+I would also like to see partially applied functions there, `abc = List.map (\i -> i + 1)` should print
+
+TODO I would like to trim empty lines above and below, but not yet sure if that will work well.
+
+There is an option to hide type definitions. This might be useful for beginners.
+
+
 ## Technical Behavior
 
 ulm-repl.ts initializes the wasm compiler and downloads the core and json packages.
@@ -84,3 +101,37 @@ ulm-repl.ts initializes the wasm compiler and downloads the core and json packag
 The `ReplInput` custom element renders codemirror and emits the `compiler` events `loading`, `ready`, `error: Error`.\
 Elm will maybe get a button to trigger compilation, in this case I will either create a port msg or set a property (attribute would need revoking).\
 But for now, the custom element will inform when Elm needs to store/show something.
+
+## DONE
+
+* Clear input when evaluating to non-error
+
+
+## TODO
+
+Next step: Styling
+1. Take from the try-editor only the styles that I need.
+2. Create one css file.
+3. Use same colors for errors and for codemirror
+4. Switching theme should change whole page, not just codemirror
+
+### Further steps
+
+Add button to copy input from history into input field
+
+Style declarations that were overwritten differently in logs
+
+Fake elm-format
+
+Prepend missing type declarations
+
+Allow user to manually remove items from log
+
+Allow user to auto-clean all outdated entries from log
+
+Beginner/Zen mode: Hide type definitions?
+
+Render all entries as one Elm file
+    Allow download of that Elm file
+
+?Clear input after every evaluate and add [try again] button to copy from last failure

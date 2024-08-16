@@ -1,15 +1,19 @@
-module UlmRepl exposing (main)
+module UlmRepl exposing (main, view)
 
+import AnsiExtra
 import Browser
 import Data.Problem
+import Elm.DSLParser
 import Elm.Error
+import Elm.Parser
+import Elm.Pretty
 import Heroicons.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
 import Html.Extra
 import Html.Keyed
-import InteropDefinitions
+import InteropDefinitions as Io
 import InteropPorts
 import Json.Decode
 import Maybe.Extra
@@ -36,41 +40,22 @@ main =
 
 
 type alias Model =
-    { history : List ( InteropDefinitions.Input, HistoryEntry )
+    { history2 : List { input : Io.Input, id : Io.Timestamp, result : Io.EvaluatedInput }
     , theme : Theme
-    , hintBelowInput : Maybe InteropDefinitions.Output
+    , inputHint : Maybe Io.Output
+    , typeDefinitionsVisible : Bool
     }
+
+
+type InputHint
+    = NoInputHint
+    | HintExpr { value : String, type_ : String }
+    | HintDecl { name : String, value : String, type_ : String }
 
 
 type HistoryEntry
     = Failure (List Data.Problem.Problem)
     | Output { maybeName : Maybe String, value : String, type_ : String }
-
-
-type alias EditorModel =
-    { file : String
-    , isCompiling : Bool
-    , lastCompilation : LastCompilation
-    , visibleProgram : Maybe ObjectUrl
-    , outputView : OutputView
-    , outputPreference : OutputPreference
-    , theme : Theme
-    }
-
-
-type LastCompilation
-    = NotStarted
-    | Success ObjectUrl
-    | Failed (List Data.Problem.Problem)
-
-
-type alias ObjectUrl =
-    String
-
-
-type OutputPreference
-    = PreferProblems
-    | PreferProgram
 
 
 
@@ -82,35 +67,22 @@ init json =
     let
         flags =
             InteropPorts.decodeFlags json
-                |> Result.withDefault InteropDefinitions.default
+                |> Result.withDefault Io.default
     in
-    ( { history =
-            [ ( "abc = 123"
-              , Output
-                    { maybeName = Just "abc"
-                    , type_ = "number"
-                    , value = "\u{001B}[95m123\u{001B}[0m"
-                    }
-              )
-            , ( "String.length"
-              , Output
-                    { maybeName = Nothing
-                    , type_ = "String -> Int"
-                    , value = "\u{001B}[36m<function>\u{001B}[0m"
-                    }
-              )
-            ]
+    ( { history2 = []
       , theme = flags.theme
-      , hintBelowInput =
+      , typeDefinitionsVisible = True
+      , inputHint =
             -- { name = Just "abc"
             -- , type_ = "number"
             -- , value = "\u{001B}[95m123\u{001B}[0m"
             -- }
-            { name = Nothing
-            , type_ = "String -> Int"
-            , value = "\u{001B}[36m<function>\u{001B}[0m"
-            }
-                |> Just
+            -- { name = Nothing
+            -- , type_ = "String -> Int"
+            -- , value = "\u{001B}[36m<function>\u{001B}[0m"
+            -- }
+            --     |> Just
+            Nothing
       }
     , Cmd.none
     )
@@ -124,10 +96,12 @@ type Msg
     = NoOp
       -- | CompilationFailed { input : String, error : Elm.Error.Error }
       -- | NewWorkDone { input: String, output: HistoryEntry }
-    | AddHistoryEntry InteropDefinitions.Input HistoryEntry
+    | AddHistoryEntry Io.Input HistoryEntry
+    | ClearHint
     | TriggeredCompile
-    | ToElm (Result Json.Decode.Error InteropDefinitions.ToElm)
+    | ToElm (Result Json.Decode.Error Io.ToElm)
     | SelectedTheme Theme
+    | SetVisibilityOfTypeDefinitions Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -139,25 +113,116 @@ update msg model =
         ToElm (Err _) ->
             ( model, Cmd.none )
 
-        ToElm (Ok _) ->
-            ( model, Cmd.none )
+        ToElm (Ok ok) ->
+            updateToElm ok model
 
         SelectedTheme theme ->
             ( { model | theme = theme }
             , Cmd.none
             )
 
-        AddHistoryEntry input output ->
-            ( { model
-                | history = ( input, output ) :: model.history
-              }
+        SetVisibilityOfTypeDefinitions bool ->
+            ( { model | typeDefinitionsVisible = bool }, Cmd.none )
+
+        AddHistoryEntry input (Failure err) ->
+            -- TODO distinguish between events on keystroke and forced compilations
+            ( model
+                -- |> addHistoryEntry input (Failure err)
+                |> clearHint
+            , Cmd.none
+            )
+
+        AddHistoryEntry input (Output output) ->
+            -- TODO distinguish between events on keystroke and forced compilations
+            ( model
+              -- |> addHistoryEntry input (Output output)
+              -- |> addHint { name output
             , Cmd.none
             )
 
         TriggeredCompile ->
             ( model
-            , InteropPorts.fromElm InteropDefinitions.TriggerCompile
+            , InteropPorts.fromElm Io.TriggerCompile
             )
+
+        ClearHint ->
+            ( model |> clearHint, Cmd.none )
+
+
+updateToElm : Io.ToElm -> Model -> ( Model, Cmd msg )
+updateToElm msg model =
+    case msg of
+        Io.CheckedTextInput Io.FoundNothing ->
+            ( model |> clearHint, Cmd.none )
+
+        Io.CheckedTextInput (Io.FoundExpression { type_, value }) ->
+            ( { model | inputHint = Just { name = Nothing, type_ = type_, value = value } }
+            , Cmd.none
+            )
+
+        Io.CheckedTextInput (Io.FoundDeclaration { name, type_, value }) ->
+            ( { model | inputHint = Just { name = Just name, type_ = type_, value = value } }
+            , Cmd.none
+            )
+
+        Io.OnCompileResult (Io.CompileSuccess _) ->
+            Debug.todo "branch 'OnCompileResult (CompileSuccess _)' not implemented"
+
+        Io.OnCompileResult (Io.CompileError _) ->
+            Debug.todo "branch 'OnCompileResult (CompileError _)' not implemented"
+
+        Io.OnCompileResult (Io.CompileErrors { errors }) ->
+            ( model |> clearHint, Cmd.none )
+
+        Io.Executed _ ->
+            Debug.todo "branch 'Executed _' not implemented"
+
+        Io.ClearHint ->
+            Debug.todo "branch 'ClearHint' not implemented"
+
+        Io.EvaluatedTextInput data ->
+            ( { model | history2 = enhanceEvaluatedTextInput data :: model.history2 }
+                |> clearHint
+            , Cmd.none
+            )
+
+
+clearHint : Model -> Model
+clearHint model =
+    { model | inputHint = Nothing }
+
+
+enhanceEvaluatedTextInput : Io.EvaluatedTextInputData -> Io.EvaluatedTextInputData
+enhanceEvaluatedTextInput { input, id, result } =
+    { id = id
+    , input =
+        case result of
+            Io.Problems _ ->
+                input
+
+            _ ->
+                elmFormat input
+    , result =
+        case result of
+            Io.EvaluatedDeclaration decl ->
+                prependDeclarationTypes decl |> Io.EvaluatedDeclaration
+
+            _ ->
+                result
+    }
+
+
+elmFormat : String -> String
+elmFormat unformatted =
+    -- TODO see tests/ElmFormat.elm
+    unformatted
+
+
+prependDeclarationTypes : Io.NewDeclaration -> Io.NewDeclaration
+prependDeclarationTypes declaration =
+    -- TODO use the value and type information to prepend the inferred types of a declaration if they are missing
+    -- might need some further work in the compiler because it does not return the actual imported names
+    declaration
 
 
 
@@ -184,60 +249,60 @@ view model =
         [ Html.Attributes.id "main"
         , Theme.toAttribute model.theme
         ]
-        [ Html.p [ Html.Attributes.style "margin" "0px" ]
-            [ Html.span []
-                [ Html.text "> String.length"
-                , Html.span [ Html.Attributes.style "color" "rgb(51, 187, 200)" ]
-                    [ Html.text "<function>" ]
-                , Html.span [ Html.Attributes.style "color" "rgb(203, 204, 205)" ]
-                    [ Html.text ": String -> Int" ]
-                ]
+        [ Html.h1 [] [ Html.text "Hello and welcome to the elm.run REPL" ]
+        , Html.p []
+            [ Html.text "I'm glad you are here. Do you want to start with "
+            , Html.a
+                [ Html.Attributes.href "#TODO-examples" ]
+                [ Html.text "example code" ]
+            , Html.text " or a "
+            , Html.a
+                [ Html.Attributes.href "#TODO-tour" ]
+                [ Html.text "tour of the Elm programming language" ]
+            , Html.text "?"
+            , Html.br [] []
+            , Html.text "If not, feel free to enter code below that I will try my best to read what you type and provide useful hints about types and what it would evaluate to. When ready, press Ctrl+Enter to evaluate the code and add it to the history."
+            , Html.br [] []
+            , Html.text "You can create type definitions and functions, replace a definition or declaration by using the same name again."
             ]
-        , Html.ul [ Html.Attributes.class "logs" ] <|
+        , Html.p [] [ Html.text "The code you write here does not leave your browser. The Elm compiler runs directly as a WASM module and generates JavaScript that is immediately executed." ]
+        , Html.Keyed.ul [ Html.Attributes.class "logs monospace" ] <|
             List.map
-                (\( input, output ) ->
+                (\{ id, input, result } ->
                     let
                         rest =
-                            case output of
-                                Failure problems ->
+                            case result of
+                                Io.Problems problems ->
                                     -- TODO remove `Jump to problem` button
                                     [ Data.Problem.viewList (\_ -> NoOp) problems ]
 
-                                Output { maybeName, value, type_ } ->
-                                    [ Html.Extra.viewMaybe
-                                        (\name ->
-                                            Html.span [] [ Html.text name ]
-                                        )
-                                        maybeName
-                                    , Html.span [] [ Html.text value ]
-                                    , Html.span [] [ Html.text type_ ]
-                                    ]
+                                Io.NoOutput ->
+                                    []
+
+                                Io.EvaluatedDeclaration { value, type_ } ->
+                                    viewValue value
+                                        ++ [ Html.text " : "
+                                           , viewType type_
+                                           ]
+
+                                Io.EvaluatedExpression { value, type_ } ->
+                                    viewValue value
+                                        ++ [ Html.text " : "
+                                           , viewType type_
+                                           ]
                     in
-                    Html.li []
-                        (Html.span [] [ Html.text input ] :: rest)
+                    ( String.fromFloat id
+                    , Html.li []
+                        (Html.pre
+                            []
+                            [ Html.text input ]
+                            :: rest
+                        )
+                    )
                 )
             <|
-                List.reverse model.history
-        , Html.node "ulm-editor"
-            [ Theme.toAttribute model.theme
-            , onCustomEvent compileResultEvent compileResultDecoder
-
-            -- , onCustomEvent compileResultEvent (InteropDefinitions.interop.toElm |> TsJson.Decode.decoder |> ToElm )
-            ]
-            []
-        , Html.Extra.viewMaybe
-            (\output ->
-                Html.div []
-                    [ Html.Extra.viewMaybe
-                        (\name ->
-                            Html.span [] [ Html.text name ]
-                        )
-                        output.name
-                    , Html.span [] [ Html.text output.value ]
-                    , Html.span [] [ Html.text output.type_ ]
-                    ]
-            )
-            model.hintBelowInput
+                List.reverse model.history2
+        , inputBox model
         , Html.menu []
             [ Html.button
                 [ Html.Events.onClick TriggeredCompile
@@ -261,8 +326,60 @@ view model =
               else
                 Html.button [ Html.Events.onClick <| SelectedTheme Theme.Dark ]
                     [ Html.text <| Theme.toString Theme.Dark ]
+            , let
+                caption =
+                    if model.typeDefinitionsVisible then
+                        "Hide type definitions"
+
+                    else
+                        "Show type definitions"
+              in
+              Html.button
+                [ Html.Events.onClick <| SetVisibilityOfTypeDefinitions <| not model.typeDefinitionsVisible ]
+                [ Html.text caption ]
             ]
         ]
+
+
+inputBox : Model -> Html Msg
+inputBox model =
+    Html.div [ Html.Attributes.class "repl-input-block" ]
+        [ case model.inputHint of
+            Nothing ->
+                Html.text "Just enter text below"
+
+            Just hint ->
+                Html.div
+                    [ Html.Attributes.class "with-editor-lines-margin monospace" ]
+                    [ Html.Extra.viewMaybe
+                        (\name -> Html.text <| name ++ " : ")
+                        hint.name
+                    , viewType hint.type_
+                    ]
+        , Html.node "ulm-editor"
+            [ Theme.toAttribute model.theme
+            , Html.Attributes.autofocus True
+            ]
+            []
+        , Html.Extra.viewMaybe
+            (\output ->
+                Html.div [ Html.Attributes.class "with-editor-lines-margin monospace" ]
+                    (viewValue output.value
+                        ++ [ Html.text " : ", viewType output.type_ ]
+                    )
+            )
+            model.inputHint
+        ]
+
+
+viewValue : AnsiExtra.Parsed -> List (Html msg)
+viewValue value =
+    AnsiExtra.view value
+
+
+viewType : String -> Html msg
+viewType str =
+    Html.span [] [ Html.text str ]
 
 
 viewIntroduction : Html Msg
@@ -287,63 +404,3 @@ viewIntroduction =
 onCustomEvent : String -> Json.Decode.Decoder a -> Html.Attribute a
 onCustomEvent event decoder =
     Html.Events.on event (Json.Decode.field "detail" decoder)
-
-
-compileResultDecoder : Json.Decode.Decoder Msg
-compileResultDecoder =
-    -- Json.Decode.map ToElm
-    --     (TsJson.Decode.decoder InteropDefinitions.interop.toElm  )
-    Json.Decode.field "type" Json.Decode.string
-        |> Json.Decode.andThen compileResultDecoder2
-
-
-
--- compileResultDecoder3 : Json.Decode.Value -> Result Json.Decode.Error InteropDefinitions.CompileResult
--- compileResultDecoder3 value =
---     Json.Decode.decodeValue (TsJson.Decode.decoder InteropDefinitions.compileResult) value
-
-
-compileResultEvent : String
-compileResultEvent =
-    "compile-result"
-
-
-compileResultDecoder2 : String -> Json.Decode.Decoder Msg
-compileResultDecoder2 type_ =
-    case Debug.log "compileResultDecoder2" type_ of
-        "success" ->
-            -- Json.Decode.map CompiledNewDocument
-            -- (Json.Decode.field "url" Json.Decode.string)
-            Debug.todo "ok decoder"
-
-        "compile-errors" ->
-            Json.Decode.map2
-                (\input err ->
-                    Data.Problem.toIndexedProblems err
-                        |> Failure
-                        |> AddHistoryEntry input
-                )
-                (Json.Decode.field "input" Json.Decode.string)
-                Elm.Error.decoder
-
-        "new-work" ->
-            Json.Decode.map2
-                (\input output -> AddHistoryEntry input output)
-                (Json.Decode.field "input" Json.Decode.string)
-                (Json.Decode.field "output" newWorkDecoder)
-
-        _ ->
-            -- Json.Decode.fail <| compileResultEvent ++ " with type='" ++ type_ ++ "' is not supported"
-            -- Json.Decode.map CompilationFailed Elm.Error.decoder
-            Debug.todo "err decoder"
-
-
-newWorkDecoder : Json.Decode.Decoder HistoryEntry
-newWorkDecoder =
-    Json.Decode.map3
-        (\name value type_ ->
-            Output { maybeName = name, value = value, type_ = type_ }
-        )
-        (Json.Decode.field "name" (Json.Decode.maybe Json.Decode.string))
-        (Json.Decode.field "value" Json.Decode.string)
-        (Json.Decode.field "type" Json.Decode.string)

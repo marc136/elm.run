@@ -118,6 +118,53 @@ executable ulm
     -- Base language which the package is written in.
     default-language: GHC2021
 
+executable repl
+    import:         shared
+    ghc-options:
+        -Wall -Wunused-packages -no-hs-main -optl-mexec-model=reactor
+        "-optl-Wl,--export=hs_init,--export=wip,--export=check,--export=evaluate"
+
+    -- .hs or .lhs file containing the Main module.
+    main-is:        WasmRepl.hs
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+
+    -- Other library packages from which modules are imported.
+    build-depends:
+        ulm,
+        binary,
+        bytestring,
+        containers,
+        directory,
+        filepath,
+        -- filelock, -- linker fails on wasm32-wasi
+        ghc-prim,
+        mtl,
+        scientific,
+        utf8-string,
+        vector,
+        -- other dependencies
+        edit-distance,
+        -- needed for module Reporting.Doc
+        ansi-terminal,
+        ansi-wl-pprint >= 0.6.8 && < 0.7,
+
+    -- Cannot run tests with `wasm32-wasi-cabal` but but default `cabal test` chokes on the
+    -- `ghc-experimental` dependency, so I only include it when building for `wasm32` arch
+    if arch(wasm32)
+        -- Needed for GHC.Wasm.Prim
+        build-depends: ghc-experimental ^>=0.1.0.0
+
+    -- Directories containing source files.
+    hs-source-dirs:
+        ./,
+        ../elm-compiler-wasm/compiler/src,
+        ../elm-compiler-wasm/builder/src,
+        -- compiler/src,
+        -- builder/src,
+        --worker/src,
+
 library
     import:         shared
     build-depends:

@@ -1,9 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Ulm.Repl ( read, toOutcome, outcomeToJsonString, initialState, ReplState )
+module Ulm.Repl ( checkRepl, evaluateRepl, read, toOutcome, outcomeToJsonString, initialState, ReplState )
  where
 
 import Prelude hiding (read)
-import qualified Data.Map as Map
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.ByteString.Lazy as LBS
@@ -44,6 +43,7 @@ import qualified Reporting.Error.Import as Import
 import qualified Reporting.Error.Syntax as ES
 import qualified Reporting.Exit.Help as Help
 import qualified Reporting.Render.Code as Code
+import qualified Reporting.Render.Type as RT
 import qualified Reporting.Render.Type.Localizer as L
 import qualified Reporting.Report as Report
 
@@ -62,17 +62,41 @@ globalReplState = unsafePerformIO (newIORef initialState)
 -- -- TODO read artifacts.dat files
 -- globalArtifacts = unsafePerformIO (newIORef initialState)
 
+checkRepl :: String -> IO Json.Encode.Value
+checkRepl str = do
+  (_, outcome) <- sharedCheckEvaluate str
+  pure $ outcomeToJson outcome
+
+evaluateRepl :: String -> IO Json.Encode.Value
+evaluateRepl str = do
+  (nextState, outcome) <- sharedCheckEvaluate str
+  writeIORef globalReplState nextState
+  putStrLn ("Changed global ReplState" ++ show nextState)
+  pure $ outcomeToJson outcome
+
+sharedCheckEvaluate :: String -> IO (ReplState, Outcome)
+sharedCheckEvaluate str = do
+  putStrLn $ "Evaluate `" ++ str ++ "`"
+  state <- readIORef globalReplState
+  print state
+  -- artifacts <- readIORef globalArtifacts
+  artifacts <- Ulm.ReadArtifacts.getHardcodedArtifacts -- TODO disable the hardcoded artifacts again
+  pure $ toOutcome artifacts state str
 
 read :: String -> IO Json.Encode.Value
 read str = do
   putStrLn $ "Evaluate `" ++ str ++ "`"
   state <- readIORef globalReplState
+  print state
   -- artifacts <- readIORef globalArtifacts
-  artifacts <- Ulm.ReadArtifacts.getHardcodedArtifacts
-  let outcome = toOutcome artifacts state str
+  artifacts <- Ulm.ReadArtifacts.getHardcodedArtifacts -- TODO disable the hardcoded artifacts again
+  let (nextState, outcome) = toOutcome artifacts state str
   print outcome
+  print nextState
   -- writeIORef globalReplState (state + 1)
+  writeIORef globalReplState nextState
   -- wip "Repl.read"
+  putStrLn ("Changed global ReplState" ++ show nextState)
   pure $ outcomeToJson outcome
 
 outcomeToJson :: Outcome -> Json.Encode.Value
@@ -80,7 +104,17 @@ outcomeToJson outcome =
   case outcome of
     NewImport name  -> encode "new-import" (show name)
     NewType name    -> encode "new-type" (show name)
-    NewWork code    -> encode "new-work" (show code)
+    NewDecl name code ->
+      Json.Encode.object
+        [ "type"        ==> Json.Encode.chars "new-decl"
+        , "name"        ==> Json.Encode.chars (show name)
+        , "evaluate"    ==> Json.Encode.chars (show code)
+        ]
+    Evaluate code ->
+      Json.Encode.object
+        [ "type"        ==> Json.Encode.chars "evaluate"
+        , "evaluate"    ==> Json.Encode.chars (show code)
+        ]
     DoNothing       -> encode "do-nothing" "undefined"
     NoPorts         -> encode "no-ports" "undefined"
     Failure source err ->
@@ -120,7 +154,8 @@ encode name dat =
 data Outcome
   = NewImport N.Name
   | NewType N.Name
-  | NewWork B.Builder
+  | NewDecl N.Name B.Builder
+  | Evaluate B.Builder
   --
   | DoNothing
   --
@@ -128,11 +163,11 @@ data Outcome
   | Failure BS.ByteString Error.Error
   deriving (Show)
 
-toOutcome :: Ulm.ReadArtifacts.ArtifactsForWasm -> ReplState -> String -> Outcome
+toOutcome :: Ulm.ReadArtifacts.ArtifactsForWasm -> ReplState -> String -> (ReplState, Outcome)
 toOutcome artifacts state entry =
   case reverse (lines entry) of
     [] ->
-      DoNothing
+      (state, DoNothing)
 
     prev : rev ->
       case traceShowId (categorize (Lines prev rev)) of
@@ -140,9 +175,10 @@ toOutcome artifacts state entry =
         Type name src   -> compile artifacts state (TypeEntry name src)
         Decl name src   -> compile artifacts state (DeclEntry name src)
         Expr src        -> compile artifacts state (ExprEntry src)
-        Port            -> NoPorts
-        Skip            -> DoNothing
-        Partial _       -> DoNothing
+        Port            -> (state, NoPorts)
+        Skip            -> (state, DoNothing)
+        Partial _       -> (state, DoNothing)
+
 
 -- COMPILE
 
@@ -154,7 +190,7 @@ data EntryType
   | ExprEntry BS.ByteString
 
 
-compile :: Ulm.ReadArtifacts.ArtifactsForWasm -> ReplState -> EntryType -> Outcome
+compile :: Ulm.ReadArtifacts.ArtifactsForWasm -> ReplState -> EntryType -> (ReplState, Outcome)
 compile (Ulm.ReadArtifacts.ArtifactsForWasm interfaces objects) state@(ReplState imports types decls) entryType =
   let
     -- source =
@@ -170,26 +206,30 @@ compile (Ulm.ReadArtifacts.ArtifactsForWasm interfaces objects) state@(ReplState
         TypeEntry   name src -> (state { _types = Map.insert name (B.byteString src) types }, OutputNothing)
         DeclEntry   name src -> (state { _decls = Map.insert name (B.byteString src) decls }, OutputDecl name)
         ExprEntry        src -> (state, OutputExpr src)
-    
-    source = toByteString nextState output
+        --Partial          src -> (state, Partial)
+
+    source = traceShowId $ toByteString nextState output
   in
   case
-    do  modul <- mapLeft Error.BadSyntax $ PM.fromByteString PM.Application source
+    do  -- modul :: Either Error.Error Src.Module
+        modul <- mapLeft Error.BadSyntax $ PM.fromByteString PM.Application source
         ifaces <- mapLeft Error.BadImports $ checkImports interfaces (Src._imports modul)
         artifacts <- Compile.compile Pkg.dummyName ifaces modul
         -- TODO store in globalReplState
         return ( modul, artifacts, objects )
   of
     Left err ->
-      Failure source (traceShowId err)
+      (state, Failure source (traceShowId err))
 
     Right info ->
-      case entryType of
+      ( nextState
+      , case entryType of
         ImportEntry name _ -> NewImport name
         TypeEntry name _   -> NewType name
-        DeclEntry name _   -> NewWork (toJavaScript info (Just name))
-        ExprEntry _        -> NewWork (toJavaScript info Nothing)
-
+        -- DeclEntry name _   -> NewWork (toJavaScript info (Just name))
+        DeclEntry name _   -> NewDecl name (toJavaScript info (Just name))
+        ExprEntry _        -> Evaluate (toJavaScript info Nothing)
+      )
 
 toJavaScript :: (Src.Module, Compile.Artifacts, Opt.GlobalGraph) -> Maybe N.Name -> B.Builder
 toJavaScript (modul, Compile.Artifacts canModule types locals, objects) maybeName =
@@ -198,10 +238,11 @@ toJavaScript (modul, Compile.Artifacts canModule types locals, objects) maybeNam
     graph = Opt.addLocalGraph locals objects
     home = Can._name canModule
     tipe = types Map.! maybe N.replValueToPrint id maybeName
+    -- tipeDoc = traceShowId $ RT.canToDoc localizer RT.None tipe
   in
   -- JS.generateForReplWasm localizer graph home maybeName tipe
   -- TODO if I use this, then I can run it directly in a worker?
-  JS.generateForReplEndpoint localizer graph home maybeName tipe
+  traceShow "with type" $ JS.generateForReplEndpoint localizer graph home maybeName (traceShowId tipe)
 
 
 mapLeft :: (x -> y) -> Either x a -> Either y a
@@ -312,7 +353,7 @@ attemptImport lines =
       Import name src
 
     Left () ->
-      Partial "import"
+      Import "ERR" src
 
 
 attemptDeclOrExpr :: Lines -> Input
@@ -347,8 +388,11 @@ attemptDeclOrExpr lines =
               if exprPosition >= declPosition then
                 Expr src
               else
-                Skip
-                
+                -- Skip
+                -- Partial "Decl"
+                -- this is a faulty case that will create an error
+                Expr src
+
 
 startsWithKeyword :: [Char] -> Lines -> Bool
 startsWithKeyword keyword lines =
@@ -406,6 +450,11 @@ data ReplState =
     , _types :: Map.Map N.Name B.Builder
     , _decls :: Map.Map N.Name B.Builder
     }
+
+instance Show ReplState where
+    show (ReplState{_imports, _types, _decls}) =
+        "imports: " ++ show (Map.keys _imports) ++ "\n types: " ++ show (Map.keys _types) ++ "\n decls: " ++ show (Map.keys _decls)
+        -- "ReplState <ilnterals> (TODO)"
 
 
 initialState :: ReplState
