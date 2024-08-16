@@ -61,7 +61,7 @@ globalReplState = unsafePerformIO (newIORef initialState)
 
 -- globalArtifacts :: IORef Artifacts
 -- {-# NOINLINE globalArtifacts #-}
--- -- TODO read artifacts.dat files 
+-- -- TODO read artifacts.dat files
 -- globalArtifacts = unsafePerformIO (newIORef initialState)
 
 
@@ -220,7 +220,7 @@ checkImports interfaces imports =
 
 
 --
--- Code below is from elm-compiler/terminal/src/Repl.hs 
+-- Code below is from elm-compiler/terminal/src/Repl.hs
 --
 
 
