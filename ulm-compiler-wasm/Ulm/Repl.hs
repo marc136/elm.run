@@ -28,6 +28,7 @@ import qualified Compile
 import qualified Elm.Interface as I
 import qualified Elm.ModuleName as ModuleName
 import qualified Elm.Package as Pkg
+import qualified File
 import qualified Generate.JavaScript as JS
 import qualified Json.Encode
 import Json.Encode ((==>))
@@ -43,6 +44,7 @@ import qualified Reporting.Annotation as A
 import qualified Reporting.Error as Error
 import qualified Reporting.Error.Import as Import
 import qualified Reporting.Error.Syntax as ES
+import qualified Reporting.Exit.Help as Help
 import qualified Reporting.Render.Code as Code
 import qualified Reporting.Render.Type.Localizer as L
 import qualified Reporting.Report as Report
@@ -79,7 +81,11 @@ read str = do
     NewWork code    -> encode "new-work" (show code)
     DoNothing       -> encode "do-nothing" "undefined"
     NoPorts         -> encode "no-ports" "undefined"
-    Failure str err -> encode "failure" "TODO" 
+    Failure source err ->
+        encode "failure" $ show $
+          --Json.Encode.encodeUgly $ Exit.toJson $
+          Json.Encode.encode $ Help.reportToJson $
+            Help.compilerReport "/" (Error.Module N.replModule "/repl" File.zeroTime source err) []
 
 
 wip str =

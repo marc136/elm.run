@@ -125,9 +125,14 @@ async function repl(code: string) {
 
         URL.revokeObjectURL(url);
       });
-  }
 
-  return { result, data };
+    case "failure":
+      // { type: 'compile-errors', errors: object[] }
+      return { result, data: JSON.parse(JSON.parse(data)) };
+
+    default:
+      return { result, data };
+  }
 }
 
 class ReplInput extends HTMLElement {
@@ -285,6 +290,11 @@ class ReplInput extends HTMLElement {
         const blob = new Blob([html], { type: "text/html" });
         const url = URL.createObjectURL(blob);
         this.emit("compile-result", { type: "success", url });
+      } else if (result?.type === "failure") {
+        this.emit("compile-result", {
+          type: "failure",
+          data: JSON.parse(result.data),
+        });
       } else {
         this.emit("compile-result", result);
       }
