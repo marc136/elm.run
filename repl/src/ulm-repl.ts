@@ -94,7 +94,7 @@ async function repl(code: string): Promise<ReplResult> {
     console.error(msg);
     return Promise.reject(msg);
   }
-
+  code = code.trim();
   // printFs();
   const start = Date.now();
   console.info("Read-eval-print", code);
