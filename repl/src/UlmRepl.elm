@@ -225,6 +225,19 @@ view model =
             -- , onCustomEvent compileResultEvent (InteropDefinitions.interop.toElm |> TsJson.Decode.decoder |> ToElm )
             ]
             []
+        , Html.Extra.viewMaybe
+            (\output ->
+                Html.div []
+                    [ Html.Extra.viewMaybe
+                        (\name ->
+                            Html.span [] [ Html.text name ]
+                        )
+                        output.name
+                    , Html.span [] [ Html.text output.value ]
+                    , Html.span [] [ Html.text output.type_ ]
+                    ]
+            )
+            model.hintBelowInput
         , Html.menu []
             [ Html.button
                 [ Html.Events.onClick TriggeredCompile
