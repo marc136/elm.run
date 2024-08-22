@@ -166,6 +166,12 @@ body {
     overflow: auto;
 }
 
+scheme-selector {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+
 .CodeMirror {
     height: auto;
 }

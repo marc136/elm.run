@@ -250,6 +250,7 @@ view model =
         , Theme.toAttribute model.theme
         ]
         [ Html.h1 [] [ Html.text "Hello and welcome to the elm.run REPL" ]
+        , Html.node "scheme-selector" [] []
         , Html.p []
             [ Html.text "I'm glad you are here. Do you want to start with "
             , Html.a

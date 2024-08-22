@@ -10,13 +10,14 @@ import {
 import type { Compiler } from "./ulm-wasm.ts";
 import { parseTarGzip } from "nanotar";
 import type { Elm, ElmApp } from "./UlmRepl.elm";
+import { detectPreferredColorScheme, ColorSchemeSelector } from "./theme-selector.ts";
 
 export function init(sourceFile: string) {
   const main = window.Elm.UlmRepl.init({
     node: document.getElementById("main"),
     flags: {
       file: sourceFile,
-      theme: prefersDarkTheme() ? "dark" : "light",
+      theme: detectPreferredColorScheme(),
     },
   });
 
@@ -70,11 +71,7 @@ export function init(sourceFile: string) {
 
   ReplInput.elmApp = main;
   window.customElements.define("ulm-editor", ReplInput);
-}
-
-function prefersDarkTheme(): boolean {
-  // TODO load/store in LocalStorage
-  return window?.matchMedia?.("(prefers-color-scheme:dark)")?.matches;
+  window.customElements.define("scheme-selector", ColorSchemeSelector);
 }
 
 let ulm: Compiler | null = null;
@@ -466,4 +463,4 @@ function debounce(func: Function) {
   };
 }
 
-export { printFs, ReplInput as UlmEditor, writeFile };
+export { printFs, ReplInput as UlmEditor, writeFile, ColorSchemeSelector };
