@@ -10,7 +10,9 @@ import {
 import type { Compiler } from "./ulm-wasm.ts";
 import { parseTarGzip } from "nanotar";
 import type { Elm, ElmApp } from "./UlmRepl.elm";
-import { detectPreferredColorScheme, ColorSchemeSelector } from "./theme-selector.ts";
+import { detectPreferredColorScheme, ColorSchemeSelector, type Scheme } from "./theme-selector.ts";
+
+document.documentElement.dataset.theme = detectPreferredColorScheme();
 
 export function init(sourceFile: string) {
   const main = window.Elm.UlmRepl.init({
@@ -235,7 +237,7 @@ class ReplInput extends HTMLElement {
   static elmApp: ElmApp | null = null;
 
   private _source: string = "";
-  private _theme: "light" | "dark" = "light";
+  private _theme: Scheme = "light";
   private _editor: unknown | null = null;
   private _file: string | null = null;
   private _lastBuild: URL | null = null;
@@ -249,6 +251,8 @@ class ReplInput extends HTMLElement {
       "compile-result",
       (evt: CustomEvent) => console.error("compile-result", evt.detail),
     );
+
+    this._theme = this.getAttribute('theme') as Scheme;
 
     //@ts-expect-error TODO import codemirror instead
     this._editor = window.CodeMirror(this, {

@@ -150,13 +150,26 @@
 
 /* End of content of try-editor/editor/editor.css */
 
+:root,
+html[data-theme="light"] {
+    --background: #FFFFFC;
+    --background-striped: #EFEFEC;
+    --text: #223;
+}
+
+html[data-theme="dark"] {
+    --background: #223;
+    --background-striped: #334;
+    --text: #dde;
+}
+
 body {
     display: flex;
     padding: 0 1rem;
     overflow: hidden;
     font-family: system-ui, sans-serif;
-    color: #113;
-    background: #FFFFFC;
+    color: var(--text);
+    background: var(--background);
     overflow: auto;
 }
 
@@ -190,7 +203,7 @@ scheme-selector {
 
 #problems {
     padding: 0;
-    background: transparent;
+    background: inherit;
 }
 
 ul.logs {
@@ -199,9 +212,11 @@ ul.logs {
 
     &>li {
         padding: 0.5em 1em;
+        background: var(--background);
 
         &:nth-child(even) {
             background: rgba(99, 99, 99, 0.1);
+            background: var(--background-striped);
         }
     }
 }
@@ -217,7 +232,7 @@ ul.logs>li>pre {
     margin: 0;
     margin-left: 0.3em;
     padding-left: 0.6em;
-    border-left: 0.1em solid black;
+    border-left: 0.1em solid var(--text);
 }
 
 ul.logs>li>pre::before {

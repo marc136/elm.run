@@ -1,3 +1,11 @@
+/**
+ * This is a light or dark color scheme selector custom element.
+ * Initially, it defaults to auto-detecting the user's setting.
+ * But they user may select either light or dark mode (and store that decision in LocalStorage).
+ * 
+ * Inspired by https://whitep4nth3r.com/blog/best-light-dark-mode-theme-toggle-javascript/
+ */
+
 export type Scheme = "light" | "dark";
 type Option = 'auto' | Scheme
 export const prefer = "prefers-color-scheme";
@@ -102,6 +110,7 @@ export class ColorSchemeSelector extends HTMLElement {
     this.dispatchEvent(
       new CustomEvent(prefer, { bubbles: true, detail: value })
     );
+    document.documentElement.dataset.theme = value;
   }
 
   private emitAndWatchMatchMedia() {

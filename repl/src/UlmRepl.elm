@@ -250,7 +250,7 @@ view model =
         , Theme.toAttribute model.theme
         ]
         [ Html.h1 [] [ Html.text "Hello and welcome to the elm.run REPL" ]
-        , Html.node "scheme-selector" [] []
+        , Theme.htmlSelectElement SelectedTheme
         , Html.p []
             [ Html.text "I'm glad you are here. Do you want to start with "
             , Html.a
@@ -400,8 +400,3 @@ viewIntroduction =
             , Html.text " maintained by the Elm community."
             ]
         ]
-
-
-onCustomEvent : String -> Json.Decode.Decoder a -> Html.Attribute a
-onCustomEvent event decoder =
-    Html.Events.on event (Json.Decode.field "detail" decoder)
