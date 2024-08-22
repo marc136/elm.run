@@ -15,6 +15,18 @@ import Elm.ModuleName qualified as ModuleName
 import Elm.Package qualified as Pkg
 import Elm.Version qualified as V
 
+
+data ArtifactsForWasm = ArtifactsForWasm
+  { interfaces :: Map.Map ModuleName.Raw I.Interface,
+    objects :: Opt.GlobalGraph
+  }
+
+-- See ulm-compiler-wasm/Ulm/ReadArtifacts.hs for conversion
+instance Show ArtifactsForWasm where
+  show (ArtifactsForWasm _ifaces _objects) =
+    "Artifacts with inferfaces: " ++ show (fmap ModuleName.toChars $ Map.keys _ifaces)
+
+
 -- copied from builder/src/Elm/Details
 data Artifacts
   = Artifacts
