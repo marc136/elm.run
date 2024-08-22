@@ -59,8 +59,10 @@ export class ColorSchemeSelector extends HTMLElement {
       switch (this.scheme) {
         case "auto":
           this.emitAndWatchMatchMedia();
+          localStorage.removeItem(prefer);
           break;
         default:
+          localStorage.setItem(prefer, this.scheme);
           if (this.matchMedia) {
             this.matchMedia.onchange = null;
           }
