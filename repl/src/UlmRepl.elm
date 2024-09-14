@@ -40,22 +40,13 @@ main =
 
 
 type alias Model =
-    { history2 : List { input : Io.Input, id : Io.Timestamp, result : Io.EvaluatedInput }
+    { history : List { input : Io.Input, id : Io.Timestamp, result : Io.EvaluatedInput }
     , theme : Theme
     , inputHint : Maybe Io.Output
     , typeDefinitionsVisible : Bool
     }
 
 
-type InputHint
-    = NoInputHint
-    | HintExpr { value : String, type_ : String }
-    | HintDecl { name : String, value : String, type_ : String }
-
-
-type HistoryEntry
-    = Failure (List Data.Problem.Problem)
-    | Output { maybeName : Maybe String, value : String, type_ : String }
 
 
 
@@ -69,20 +60,10 @@ init json =
             InteropPorts.decodeFlags json
                 |> Result.withDefault Io.default
     in
-    ( { history2 = []
+    ( { history = []
       , theme = flags.theme
       , typeDefinitionsVisible = True
-      , inputHint =
-            -- { name = Just "abc"
-            -- , type_ = "number"
-            -- , value = "\u{001B}[95m123\u{001B}[0m"
-            -- }
-            -- { name = Nothing
-            -- , type_ = "String -> Int"
-            -- , value = "\u{001B}[36m<function>\u{001B}[0m"
-            -- }
-            --     |> Just
-            Nothing
+      , inputHint = Nothing
       }
     , Cmd.none
     )
@@ -94,9 +75,6 @@ init json =
 
 type Msg
     = NoOp
-      -- | CompilationFailed { input : String, error : Elm.Error.Error }
-      -- | NewWorkDone { input: String, output: HistoryEntry }
-    | AddHistoryEntry Io.Input HistoryEntry
     | ClearHint
     | TriggeredCompile
     | ToElm (Result Json.Decode.Error Io.ToElm)
@@ -123,22 +101,6 @@ update msg model =
 
         SetVisibilityOfTypeDefinitions bool ->
             ( { model | typeDefinitionsVisible = bool }, Cmd.none )
-
-        AddHistoryEntry input (Failure err) ->
-            -- TODO distinguish between events on keystroke and forced compilations
-            ( model
-                -- |> addHistoryEntry input (Failure err)
-                |> clearHint
-            , Cmd.none
-            )
-
-        AddHistoryEntry input (Output output) ->
-            -- TODO distinguish between events on keystroke and forced compilations
-            ( model
-              -- |> addHistoryEntry input (Output output)
-              -- |> addHint { name output
-            , Cmd.none
-            )
 
         TriggeredCompile ->
             ( model
@@ -181,7 +143,7 @@ updateToElm msg model =
             Debug.todo "branch 'ClearHint' not implemented"
 
         Io.EvaluatedTextInput data ->
-            ( { model | history2 = enhanceEvaluatedTextInput data :: model.history2 }
+            ( { model | history = enhanceEvaluatedTextInput data :: model.history }
                 |> clearHint
             , InteropPorts.fromElm Io.ScrollToBottom
             )
@@ -236,11 +198,6 @@ subscriptions _ =
 
 
 -- VIEW
-
-
-type OutputView
-    = ViewIntroduction
-    | ViewCompiled
 
 
 view : Model -> Html Msg
@@ -313,7 +270,7 @@ view model =
                     )
                 )
             <|
-                List.reverse model.history2
+                List.reverse model.history
         , Html.div [ Html.Attributes.class "input-row" ]
             [ Html.button
                 [ Html.Events.onClick TriggeredCompile
