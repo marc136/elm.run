@@ -1,11 +1,9 @@
 import {
   fs,
-  pkgDir,
   printFs,
   readFileToString,
   unpackInto,
   writeFile,
-  writeFileInDir,
 } from "../../ulm-editor/src/fs.ts";
 import type { Compiler } from "./ulm-wasm.ts";
 import { parseTarGzip } from "nanotar";

@@ -3,10 +3,6 @@ module UlmRepl exposing (main, view)
 import AnsiExtra
 import Browser
 import Data.Problem
-import Elm.DSLParser
-import Elm.Error
-import Elm.Parser
-import Elm.Pretty
 import Heroicons.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes
@@ -16,10 +12,8 @@ import Html.Keyed
 import InteropDefinitions as Io
 import InteropPorts
 import Json.Decode
-import Maybe.Extra
 import ModalDialog
 import Theme exposing (Theme)
-import TsJson.Decode
 
 
 
