@@ -273,6 +273,7 @@ class ReplInput extends HTMLElement {
       keyMap: "sublime",
       matchBrackets: true,
       autoCloseBrackets: true,
+      screenReaderLabel: 'Enter Elm code here to evaluate it',
       styleActiveLine: true,
       theme: this._theme,
       value: this._source || '1 + 2',
