@@ -241,7 +241,18 @@ ul.logs>li>pre::before {
     left: -1em; */
 }
 
-.repl-input-block {
+.input-row {
+    display: flex;
+    flex-direction: row;
+    border: 1px solid var(--background-striped);
+
+    button {
+        margin-right: 1em;
+    }
+}
+
+.repl-input-column {
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
 }

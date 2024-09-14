@@ -303,8 +303,7 @@ view model =
                 )
             <|
                 List.reverse model.history2
-        , inputBox model
-        , Html.menu []
+        , Html.div [ Html.Attributes.class "input-row" ]
             [ Html.button
                 [ Html.Events.onClick TriggeredCompile
                 , Html.Attributes.title "Run code"
@@ -312,22 +311,10 @@ view model =
                 [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
                 , Html.text "Run code"
                 ]
-            , Html.button
-                [ Html.Attributes.class "circle-icon"
-                , Html.Events.onClick TriggeredCompile
-                , Html.Attributes.title "compile"
-                , Html.Attributes.attribute "aria-label" "compile"
-                ]
-                [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
-                ]
-            , if model.theme == Theme.Dark then
-                Html.button [ Html.Events.onClick <| SelectedTheme Theme.Light ]
-                    [ Html.text <| Theme.toString Theme.Light ]
-
-              else
-                Html.button [ Html.Events.onClick <| SelectedTheme Theme.Dark ]
-                    [ Html.text <| Theme.toString Theme.Dark ]
-            , let
+            , inputBox model
+            ]
+        , Html.menu []
+            [ let
                 caption =
                     if model.typeDefinitionsVisible then
                         "Hide type definitions"
@@ -344,7 +331,7 @@ view model =
 
 inputBox : Model -> Html Msg
 inputBox model =
-    Html.div [ Html.Attributes.class "repl-input-block" ]
+    Html.div [ Html.Attributes.class "repl-input-column" ]
         [ case model.inputHint of
             Nothing ->
                 Html.text "Just enter text below"
