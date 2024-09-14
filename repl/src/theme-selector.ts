@@ -39,8 +39,8 @@ export class ColorSchemeSelector extends HTMLElement {
   constructor() {
     super();
     this.form = this.appendChild(document.createElement("form"));
-    this.form.appendChild(this.mkInput("auto", "auto"));
     this.form.appendChild(this.mkInput("light", "light"));
+    this.form.appendChild(this.mkInput("auto", "auto"));
     this.form.appendChild(this.mkInput("dark", "dark"));
   }
 
