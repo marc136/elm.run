@@ -267,6 +267,17 @@ view model =
             , Html.text "You can create type definitions and functions, replace a definition or declaration by using the same name again."
             ]
         , Html.p [] [ Html.text "The code you write here does not leave your browser. The Elm compiler runs directly as a WASM module and generates JavaScript that is immediately executed." ]
+        , Html.nav [ Html.Attributes.class "sticky" ]
+            [ Html.span [ Html.Attributes.class "visible-if-sticky" ] [ Html.text "elm.run REPL" ]
+            , Html.menu []
+                [ Html.Extra.viewIfLazy (List.length model.history > 0)
+                    (\() ->
+                        Html.button [ Html.Events.onClick PressedClearButton ]
+                            [ Html.text "Clear " ]
+                    )
+                ]
+            , Theme.htmlSelectElement SelectedTheme
+            ]
         , Html.Keyed.ul [ Html.Attributes.class "logs monospace" ] <|
             List.map
                 (\{ id, input, result } ->

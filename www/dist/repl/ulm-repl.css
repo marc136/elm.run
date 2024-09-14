@@ -176,7 +176,7 @@ body {
 #main {
     display: flex;
     flex-direction: column;
-    overflow: auto;
+    overflow: unset; /* needed for .sticky nav */
 }
 
 scheme-selector {
@@ -255,4 +255,32 @@ ul.logs>li>pre::before {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
+}
+nav.sticky {
+    display: flex;
+    flex-direction: row;
+    justify-content: stretch;
+    justify-content: space-between;
+    align-items: center;
+    /* for this to work inside a flex column, no parent (except `body`) may set `overflow`, see https://stackoverflow.com/a/58295375 */
+    position: sticky;
+    top: 0;
+    z-index: 5;
+
+    &.is-stuck {
+        /* To detect this is-stuck state, an IntersectionObserver is used. For details, see https://stackoverflow.com/a/57991537 */
+        background: var(--light-theme-green);
+    }
+
+    &:not(.is-stuck) {
+        > scheme-selector {
+            display: none
+        }
+    }
+
+    > scheme-selector {
+        position: relative;
+        top: unset;
+        right: unset;
+    }
 }

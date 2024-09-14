@@ -74,6 +74,17 @@ export function init(sourceFile: string) {
   ReplInput.elmApp = main;
   window.customElements.define("ulm-editor", ReplInput);
   window.customElements.define("scheme-selector", ColorSchemeSelector);
+
+  requestAnimationFrame(detectStickyElements)
+}
+
+function detectStickyElements() {
+  // Used for sticky top navigation, see https://stackoverflow.com/a/57991537 
+  const observer = new IntersectionObserver(
+    ([e]) => e.target.classList.toggle('is-stuck', e.intersectionRatio < 1),
+    { threshold: [1], rootMargin: '-1px 0px 0px 0px' }
+  );
+  document.querySelectorAll('.sticky').forEach(elem => observer.observe(elem));
 }
 
 let ulm: Compiler | null = null;
