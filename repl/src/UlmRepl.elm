@@ -17,6 +17,7 @@ import InteropDefinitions as Io
 import InteropPorts
 import Json.Decode
 import Maybe.Extra
+import ModalDialog
 import Theme exposing (Theme)
 import TsJson.Decode
 
@@ -44,9 +45,12 @@ type alias Model =
     , theme : Theme
     , inputHint : Maybe Io.Output
     , typeDefinitionsVisible : Bool
+    , modalDialog : Maybe ModalDialog
     }
 
 
+type ModalDialog
+    = ClearDialog
 
 
 
@@ -64,6 +68,7 @@ init json =
       , theme = flags.theme
       , typeDefinitionsVisible = True
       , inputHint = Nothing
+      , modalDialog = Nothing
       }
     , Cmd.none
     )
@@ -75,11 +80,12 @@ init json =
 
 type Msg
     = NoOp
-    | ClearHint
     | TriggeredCompile
     | ToElm (Result Json.Decode.Error Io.ToElm)
     | SelectedTheme Theme
     | SetVisibilityOfTypeDefinitions Bool
+    | PressedClearButton
+    | CloseModal
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -107,8 +113,11 @@ update msg model =
             , InteropPorts.fromElm Io.TriggerCompile
             )
 
-        ClearHint ->
-            ( model |> clearHint, Cmd.none )
+        CloseModal ->
+            ( { model | modalDialog = Nothing }, Cmd.none )
+
+        PressedClearButton ->
+            ( { model | modalDialog = Just ClearDialog }, Cmd.none )
 
 
 updateToElm : Io.ToElm -> Model -> ( Model, Cmd Msg )
@@ -294,6 +303,7 @@ view model =
                 [ Html.Events.onClick <| SetVisibilityOfTypeDefinitions <| not model.typeDefinitionsVisible ]
                 [ Html.text caption ]
             ]
+        , viewModalDialog model
         ]
 
 
@@ -336,6 +346,36 @@ viewValue value =
 viewType : String -> Html msg
 viewType str =
     Html.span [] [ Html.text str ]
+
+
+viewModalDialog : Model -> Html Msg
+viewModalDialog { modalDialog } =
+    case modalDialog of
+        Nothing ->
+            Html.Extra.nothing
+
+        Just ClearDialog ->
+            ModalDialog.view True
+                CloseModal
+                []
+                [ Html.form []
+                    [ Html.h1 [] [ Html.text "What should I do?" ]
+                    , Html.button [ Html.Attributes.value "all" ] [ Html.text "Clear everything (full reset)" ]
+                    , Html.hr [] []
+                    , Html.button [ Html.Attributes.value "default" ]
+                        [ Html.text "Remove everything except the current declarations" ]
+                    , Html.button []
+                        [ Html.text "Remove only outdated declarations" ]
+                    , Html.button []
+                        [ Html.text "Remove all errors" ]
+                    , Html.button []
+                        [ Html.text "Remove evaluated expressions" ]
+                    , Html.hr [] []
+                    , Html.button [ Html.Attributes.attribute "formmethod" "dialog" ]
+                        [ Html.text "Nothing, let's go back to the REPL"
+                        ]
+                    ]
+                ]
 
 
 viewIntroduction : Html Msg

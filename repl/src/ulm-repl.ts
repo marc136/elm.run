@@ -11,6 +11,7 @@ import type { Compiler } from "./ulm-wasm.ts";
 import { parseTarGzip } from "nanotar";
 import type { Elm, ElmApp } from "./UlmRepl.elm";
 import { detectPreferredColorScheme, ColorSchemeSelector, type Scheme } from "./theme-selector.ts";
+import { ModalDialog } from "./ModalDialog.ts";
 
 document.documentElement.dataset.theme = detectPreferredColorScheme();
 
@@ -74,6 +75,7 @@ export function init(sourceFile: string) {
   ReplInput.elmApp = main;
   window.customElements.define("ulm-editor", ReplInput);
   window.customElements.define("scheme-selector", ColorSchemeSelector);
+  window.customElements.define("modal-dialog", ModalDialog);
 
   requestAnimationFrame(detectStickyElements)
 }

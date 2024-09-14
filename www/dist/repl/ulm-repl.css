@@ -362,3 +362,31 @@ nav.sticky {
         right: unset;
     }
 }
+
+modal-dialog {
+    /* Adapted from https://discourse.elm-lang.org/t/native-html-element-dialog-modal-opening-closing/9232 */
+    dialog {
+        padding: 1rem;
+    }
+
+    /* .modal-filler first dialog child needed to prevent closing on dialog padding */
+    dialog:modal > .modal-filler {
+        opacity: 0;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -10;
+    }
+
+    dialog::backdrop {
+        background: rgb(0 0 0 / 0.8);
+    }
+
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 1em;
+    }
+}
