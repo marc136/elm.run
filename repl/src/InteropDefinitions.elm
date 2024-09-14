@@ -38,6 +38,7 @@ interop =
 
 type FromElm
     = TriggerCompile
+    | ScrollToBottom
 
 
 type alias Timestamp =
@@ -103,12 +104,16 @@ default =
 fromElm : Encoder FromElm
 fromElm =
     TsEncode.union
-        (\vTriggerCompile value ->
+        (\vTriggerCompile vScrollToBottom value ->
             case value of
                 TriggerCompile ->
                     vTriggerCompile ""
+
+                ScrollToBottom ->
+                    vScrollToBottom ""
         )
         |> TsEncode.variantTagged "compile" TsEncode.string
+        |> TsEncode.variantTagged "scroll-to-bottom" TsEncode.string
         |> TsEncode.buildUnion
 
 

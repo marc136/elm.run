@@ -149,7 +149,7 @@ update msg model =
             ( model |> clearHint, Cmd.none )
 
 
-updateToElm : Io.ToElm -> Model -> ( Model, Cmd msg )
+updateToElm : Io.ToElm -> Model -> ( Model, Cmd Msg )
 updateToElm msg model =
     case msg of
         Io.CheckedTextInput Io.FoundNothing ->
@@ -183,7 +183,7 @@ updateToElm msg model =
         Io.EvaluatedTextInput data ->
             ( { model | history2 = enhanceEvaluatedTextInput data :: model.history2 }
                 |> clearHint
-            , Cmd.none
+            , InteropPorts.fromElm Io.ScrollToBottom
             )
 
 

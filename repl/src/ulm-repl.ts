@@ -370,6 +370,9 @@ class ReplInput extends HTMLElement {
             this._editor?.setValue(msg.data);
             this.compile();
             break;
+          case 'scroll-to-bottom':
+            requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+            break;
           default:
             console.warn("Unknown port message `fromElm`", msg);
         }
