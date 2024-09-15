@@ -6,6 +6,7 @@ import Data.Problem
 import Heroicons.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes
+import Html.Attributes.Aria
 import Html.Events
 import Html.Extra
 import Html.Keyed
@@ -355,7 +356,9 @@ view model =
                 [ Html.Extra.viewIfLazy (List.length model.history > 0)
                     (\() ->
                         Html.button [ Html.Events.onClick PressedClearButton ]
-                            [ Icon.archiveBoxXMark [], Html.text "Clean up " ]
+                            [ Icon.archiveBoxXMark [ Html.Attributes.Aria.ariaHidden True ]
+                            , Html.text "Clean up "
+                            ]
                     )
                 ]
             , Theme.htmlSelectElement SelectedTheme
@@ -368,7 +371,7 @@ view model =
                 [ Html.Events.onClick TriggeredCompile
                 , Html.Attributes.title "Run code"
                 ]
-                [ Icon.playCircle [ Html.Attributes.style "color" "green" ]
+                [ Icon.playCircle [ Html.Attributes.Aria.ariaHidden True ]
                 , Html.text "Run code"
                 ]
             , inputBox model

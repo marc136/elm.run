@@ -16,6 +16,7 @@
             "elm/svg": "1.0.1",
             "elm-community/html-extra": "3.4.0",
             "elmcraft/core-extra": "2.0.0",
+            "fapian/elm-html-aria": "1.4.0",
             "jasonliang-dev/elm-heroicons": "2.3.0",
             "stil4m/elm-syntax": "7.3.4",
             "the-sett/elm-syntax-dsl": "6.0.3",
