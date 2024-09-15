@@ -61,12 +61,12 @@ type CheckedInput
 
 
 type alias NewDeclaration =
-    { name : String, type_ : String, value : AnsiExtra.Parsed }
+    { name : String, type_ : String, value : AnsiExtra.Parsed, outdated : Bool }
 
 
 type EvaluatedInput
     = NoOutput
-    | EvaluatedDeclaration { name : String, type_ : String, value : AnsiExtra.Parsed }
+    | EvaluatedDeclaration NewDeclaration
     | EvaluatedExpression { type_ : String, value : AnsiExtra.Parsed }
     | Problems (List Data.Problem.Problem)
 
@@ -165,7 +165,7 @@ checkedInput =
 
 newDecl : Decoder NewDeclaration
 newDecl =
-    TsDecode.map3 (\name type_ value -> { name = name, type_ = type_, value = AnsiExtra.parse value })
+    TsDecode.map3 (\name type_ value -> { name = name, type_ = type_, value = AnsiExtra.parse value, outdated = False })
         (TsDecode.field "name" TsDecode.string)
         (TsDecode.field "type" TsDecode.string)
         (TsDecode.field "value" TsDecode.string)
@@ -184,7 +184,7 @@ evaluatedResult =
     TsDecode.discriminatedUnion "type"
         [ ( "new-decl"
           , TsDecode.field "value" <|
-                TsDecode.map3 (\name type_ value -> EvaluatedDeclaration { name = name, type_ = type_, value = AnsiExtra.parse value })
+                TsDecode.map3 (\name type_ value -> EvaluatedDeclaration { name = name, type_ = type_, value = AnsiExtra.parse value, outdated = False })
                     (TsDecode.field "name" TsDecode.string)
                     (TsDecode.field "type" TsDecode.string)
                     (TsDecode.field "value" TsDecode.string)

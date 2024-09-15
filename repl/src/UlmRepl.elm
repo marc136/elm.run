@@ -135,9 +135,8 @@ update msg model =
                             Io.NoOutput ->
                                 False
 
-                            Io.EvaluatedDeclaration _ ->
-                                -- TODO keep current declarations
-                                False
+                            Io.EvaluatedDeclaration { outdated } ->
+                                not outdated
 
                             Io.Problems _ ->
                                 False
@@ -150,9 +149,8 @@ update msg model =
                 |> filterHistory
                     (\entry ->
                         case entry.result of
-                            Io.EvaluatedDeclaration _ ->
-                                -- TODO keep current declarations
-                                False
+                            Io.EvaluatedDeclaration { outdated } ->
+                                not outdated
 
                             _ ->
                                 True
@@ -243,7 +241,29 @@ updateToElm msg model =
             )
 
         Io.EvaluatedTextInput data ->
-            ( { model | history = enhanceEvaluatedTextInput data :: model.history }
+            let
+                history =
+                    case data.result of
+                        Io.EvaluatedDeclaration new ->
+                            List.map
+                                (\entry ->
+                                    case entry.result of
+                                        Io.EvaluatedDeclaration old ->
+                                            if old.name == new.name then
+                                                { entry | result = Io.EvaluatedDeclaration { old | outdated = True } }
+
+                                            else
+                                                entry
+
+                                        _ ->
+                                            entry
+                                )
+                                model.history
+
+                        _ ->
+                            model.history
+            in
+            ( { model | history = enhanceEvaluatedTextInput data :: history }
                 |> clearHint
             , InteropPorts.fromElm Io.ScrollToBottom
             )
@@ -363,20 +383,33 @@ viewHistoryEntry { id, input, result } =
         rest =
             case result of
                 Io.Problems problems ->
-                    -- TODO remove `Jump to problem` button
-                    [ Data.Problem.viewList (\_ -> NoOp) problems ]
+                    [ viewCode input
+                    , -- TODO remove `Jump to problem` button
+                      Data.Problem.viewList (\_ -> NoOp) problems
+                    ]
 
                 Io.NoOutput ->
-                    []
+                    [ viewCode input ]
 
-                Io.EvaluatedDeclaration { value, type_ } ->
-                    viewValue value
-                        ++ [ Html.text " : "
-                           , viewType type_
-                           ]
+                Io.EvaluatedDeclaration { name, value, type_, outdated } ->
+                    [ [ Html.Extra.viewIf outdated
+                            (Html.div [ Html.Attributes.class "outdated" ]
+                                [ Html.span [ Html.Attributes.class "label" ] [ Html.text "outdated:" ]
+                                , Html.text <| " Replaced by another implementation of `" ++ name ++ "`"
+                                ]
+                            )
+                      , viewCode input
+                      ]
+                    , viewValue value
+                    , [ Html.text " : "
+                      , viewType type_
+                      ]
+                    ]
+                        |> List.concat
 
                 Io.EvaluatedExpression { value, type_ } ->
-                    viewValue value
+                    viewCode input
+                        :: viewValue value
                         ++ [ Html.text " : "
                            , viewType type_
                            ]
@@ -386,12 +419,24 @@ viewHistoryEntry { id, input, result } =
         (Html.button [ Html.Events.onClick <| PressedRemoveButton id ]
             -- TODO add icon or screen reader caption
             [ Html.text "x" ]
-            :: Html.pre
-                []
-                [ Html.text input ]
             :: rest
         )
     )
+
+
+viewCode : String -> Html msg
+viewCode code =
+    Html.pre [] [ Html.text code ]
+
+
+viewValue : AnsiExtra.Parsed -> List (Html msg)
+viewValue value =
+    AnsiExtra.view value
+
+
+viewType : String -> Html msg
+viewType str =
+    Html.span [] [ Html.text str ]
 
 
 inputBox : Model -> Html Msg
@@ -423,16 +468,6 @@ inputBox model =
             )
             model.inputHint
         ]
-
-
-viewValue : AnsiExtra.Parsed -> List (Html msg)
-viewValue value =
-    AnsiExtra.view value
-
-
-viewType : String -> Html msg
-viewType str =
-    Html.span [] [ Html.text str ]
 
 
 viewModalDialog : Model -> Html Msg

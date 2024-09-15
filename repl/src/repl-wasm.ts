@@ -1,14 +1,13 @@
 import { WASI, File, OpenFile, ConsoleStdout } from "@bjorn3/browser_wasi_shim";
 import type { Fd } from "@bjorn3/browser_wasi_shim";
 
-// import ulmWasm from '../../www/generated/ulm.wasm' 
 import ulmJs from '../../www/generated/repl'
 
 export interface Compiler {
     compile: (source: string) => Promise<CompileResult>
     make: (filepath: string) => Promise<CompileResult>
-    // TODO
     repl: (code: string) => Promise<string>
+    removeFromState: (name: string) => Promise<null>
 }
 
 // // CompilerReport in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs

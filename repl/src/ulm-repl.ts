@@ -362,8 +362,6 @@ class ReplInput extends HTMLElement {
       ReplInput.elmApp.ports.interopFromElm.subscribe((msg) => {
         console.info("port message `fromElm`", msg);
         switch (msg.tag) {
-          case "revoke-object-url":
-            return URL.revokeObjectURL(msg.data);
           case "compile":
             this.compile();
             break;
@@ -376,7 +374,7 @@ class ReplInput extends HTMLElement {
             break;
           case 'remove-from-state':
             if (Array.isArray(msg.data)) {
-              msg.data.forEach(name => ulm.removeFromState(name));
+              msg.data.forEach(name => ulm?.removeFromState(name));
             } else {
               console.error('Expected a list of strings to remove from state');
             };
