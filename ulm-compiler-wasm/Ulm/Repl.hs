@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Ulm.Repl ( checkRepl, evaluateRepl, read, toOutcome, outcomeToJsonString, initialState, ReplState )
+module Ulm.Repl ( checkRepl, evaluateRepl, read, removeFromState, toOutcome, outcomeToJsonString, initialState, ReplState )
  where
 
 import Prelude hiding (read)
@@ -61,6 +61,13 @@ globalReplState = unsafePerformIO (newIORef initialState)
 -- {-# NOINLINE globalArtifacts #-}
 -- -- TODO read artifacts.dat files
 -- globalArtifacts = unsafePerformIO (newIORef initialState)
+
+removeFromState :: String -> IO ()
+removeFromState string = do
+  state@(ReplState imports types decls) <- readIORef globalReplState
+  let name = N.fromChars string
+  let after = ReplState (Map.delete name imports) (Map.delete name types) (Map.delete name decls)
+  writeIORef globalReplState after
 
 checkRepl :: String -> IO Json.Encode.Value
 checkRepl str = do

@@ -122,7 +122,7 @@ executable repl
     import:         shared
     ghc-options:
         -Wall -Wunused-packages -no-hs-main -optl-mexec-model=reactor
-        "-optl-Wl,--export=hs_init,--export=wip,--export=check,--export=evaluate"
+        "-optl-Wl,--export=hs_init,--export=wip,--export=check,--export=evaluate,--export=removeFromState"
 
     -- .hs or .lhs file containing the Main module.
     main-is:        WasmRepl.hs

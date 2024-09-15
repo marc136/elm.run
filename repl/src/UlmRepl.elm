@@ -35,12 +35,17 @@ main =
 
 
 type alias Model =
-    { history : List { input : Io.Input, id : Io.Timestamp, result : Io.EvaluatedInput }
+    { history : List HistoryEntry
     , theme : Theme
     , inputHint : Maybe Io.Output
     , typeDefinitionsVisible : Bool
     , modalDialog : Maybe ModalDialog
     }
+
+
+type alias HistoryEntry =
+    -- TODO state to mark declaration as outdated, needed for visual and for clean up
+    { input : Io.Input, id : Io.Timestamp, result : Io.EvaluatedInput }
 
 
 type ModalDialog
@@ -79,6 +84,12 @@ type Msg
     | SelectedTheme Theme
     | SetVisibilityOfTypeDefinitions Bool
     | PressedClearButton
+    | PressedRemoveButton Io.Timestamp
+    | PressedRemoveAll
+    | PressedRemoveAllExceptCurrentDeclarations
+    | PressedRemoveOutdatedDeclarations
+    | PressedRemoveErrors
+    | PressedRemoveExpressions
     | CloseModal
 
 
@@ -112,6 +123,107 @@ update msg model =
 
         PressedClearButton ->
             ( { model | modalDialog = Just ClearDialog }, Cmd.none )
+
+        PressedRemoveAllExceptCurrentDeclarations ->
+            ( model
+                |> filterHistory
+                    (\entry ->
+                        case entry.result of
+                            Io.EvaluatedExpression _ ->
+                                False
+
+                            Io.NoOutput ->
+                                False
+
+                            Io.EvaluatedDeclaration _ ->
+                                -- TODO keep current declarations
+                                False
+
+                            Io.Problems _ ->
+                                False
+                    )
+            , Cmd.none
+            )
+
+        PressedRemoveOutdatedDeclarations ->
+            ( model
+                |> filterHistory
+                    (\entry ->
+                        case entry.result of
+                            Io.EvaluatedDeclaration _ ->
+                                -- TODO keep current declarations
+                                False
+
+                            _ ->
+                                True
+                    )
+            , Cmd.none
+            )
+
+        PressedRemoveErrors ->
+            ( model
+                |> filterHistory
+                    (\entry ->
+                        case entry.result of
+                            Io.Problems _ ->
+                                False
+
+                            _ ->
+                                True
+                    )
+            , Cmd.none
+            )
+
+        PressedRemoveExpressions ->
+            ( model
+                |> filterHistory
+                    (\entry ->
+                        case entry.result of
+                            Io.EvaluatedExpression _ ->
+                                False
+
+                            _ ->
+                                True
+                    )
+            , Cmd.none
+            )
+
+        PressedRemoveAll ->
+            ( { model | history = [] }
+            , List.filterMap
+                (\entry ->
+                    case entry.result of
+                        Io.EvaluatedDeclaration { name } ->
+                            Just name
+
+                        _ ->
+                            Nothing
+                )
+                model.history
+                |> Io.RemoveFromState
+                |> InteropPorts.fromElm
+            )
+
+        PressedRemoveButton id ->
+            -- Should I ask for confirmation?
+            let
+                ( keep, remove ) =
+                    List.partition (\entry -> entry.id /= id) model.history
+            in
+            ( { model | history = keep }
+            , List.filterMap
+                (\entry ->
+                    case entry.result of
+                        Io.EvaluatedDeclaration { name } ->
+                            Just name
+
+                        _ ->
+                            Nothing
+                )
+                remove
+                |> Io.RemoveFromState
+                |> InteropPorts.fromElm
+            )
 
 
 updateToElm : Io.ToElm -> Model -> ( Model, Cmd Msg )
@@ -155,6 +267,11 @@ updateToElm msg model =
 clearHint : Model -> Model
 clearHint model =
     { model | inputHint = Nothing }
+
+
+filterHistory : (HistoryEntry -> Bool) -> Model -> Model
+filterHistory fn model =
+    { model | history = List.filter fn model.history }
 
 
 enhanceEvaluatedTextInput : Io.EvaluatedTextInputData -> Io.EvaluatedTextInputData
@@ -233,46 +350,13 @@ view model =
                 [ Html.Extra.viewIfLazy (List.length model.history > 0)
                     (\() ->
                         Html.button [ Html.Events.onClick PressedClearButton ]
-                            [ Html.text "Clear " ]
+                            [ Icon.archiveBoxXMark [], Html.text "Clean up " ]
                     )
                 ]
             , Theme.htmlSelectElement SelectedTheme
             ]
         , Html.Keyed.ul [ Html.Attributes.class "logs monospace" ] <|
-            List.map
-                (\{ id, input, result } ->
-                    let
-                        rest =
-                            case result of
-                                Io.Problems problems ->
-                                    -- TODO remove `Jump to problem` button
-                                    [ Data.Problem.viewList (\_ -> NoOp) problems ]
-
-                                Io.NoOutput ->
-                                    []
-
-                                Io.EvaluatedDeclaration { value, type_ } ->
-                                    viewValue value
-                                        ++ [ Html.text " : "
-                                           , viewType type_
-                                           ]
-
-                                Io.EvaluatedExpression { value, type_ } ->
-                                    viewValue value
-                                        ++ [ Html.text " : "
-                                           , viewType type_
-                                           ]
-                    in
-                    ( String.fromFloat id
-                    , Html.li []
-                        (Html.pre
-                            []
-                            [ Html.text input ]
-                            :: rest
-                        )
-                    )
-                )
-            <|
+            List.map viewHistoryEntry <|
                 List.reverse model.history
         , Html.div [ Html.Attributes.class "input-row" ]
             [ Html.button
@@ -299,6 +383,43 @@ view model =
             ]
         , viewModalDialog model
         ]
+
+
+viewHistoryEntry : HistoryEntry -> ( String, Html Msg )
+viewHistoryEntry { id, input, result } =
+    let
+        rest =
+            case result of
+                Io.Problems problems ->
+                    -- TODO remove `Jump to problem` button
+                    [ Data.Problem.viewList (\_ -> NoOp) problems ]
+
+                Io.NoOutput ->
+                    []
+
+                Io.EvaluatedDeclaration { value, type_ } ->
+                    viewValue value
+                        ++ [ Html.text " : "
+                           , viewType type_
+                           ]
+
+                Io.EvaluatedExpression { value, type_ } ->
+                    viewValue value
+                        ++ [ Html.text " : "
+                           , viewType type_
+                           ]
+    in
+    ( String.fromFloat id
+    , Html.li []
+        (Html.button [ Html.Events.onClick <| PressedRemoveButton id ]
+            -- TODO add icon or screen reader caption
+            [ Html.text "x" ]
+            :: Html.pre
+                []
+                [ Html.text input ]
+            :: rest
+        )
+    )
 
 
 inputBox : Model -> Html Msg
@@ -352,24 +473,33 @@ viewModalDialog { modalDialog } =
             ModalDialog.view True
                 CloseModal
                 []
-                [ Html.form []
+                [ Html.form [ Html.Events.onSubmit CloseModal ]
                     [ Html.h1 [] [ Html.text "What should I do?" ]
-                    , Html.button [ Html.Attributes.value "all" ] [ Html.text "Clear everything (full reset)" ]
+                    , clickButton PressedRemoveAll "Clear everything (full reset)"
                     , Html.hr [] []
-                    , Html.button [ Html.Attributes.value "default" ]
-                        [ Html.text "Remove everything except the current declarations" ]
-                    , Html.button []
-                        [ Html.text "Remove only outdated declarations" ]
-                    , Html.button []
-                        [ Html.text "Remove all errors" ]
-                    , Html.button []
-                        [ Html.text "Remove evaluated expressions" ]
+                    , clickButton PressedRemoveAllExceptCurrentDeclarations
+                        "Remove everything except the current declarations"
+                    , clickButton PressedRemoveOutdatedDeclarations
+                        "Remove only outdated declarations"
+                    , clickButton PressedRemoveErrors
+                        "Remove all errors"
+                    , clickButton PressedRemoveExpressions
+                        "Remove evaluated expressions"
                     , Html.hr [] []
-                    , Html.button [ Html.Attributes.attribute "formmethod" "dialog" ]
+                    , Html.button
+                        [ Html.Attributes.attribute "formmethod" "dialog"
+                        , Html.Events.onClick CloseModal
+                        , Html.Attributes.autofocus True
+                        ]
                         [ Html.text "Nothing, let's go back to the REPL"
                         ]
                     ]
                 ]
+
+
+clickButton : msg -> String -> Html msg
+clickButton msg caption =
+    Html.button [ Html.Events.onClick msg ] [ Html.text caption ]
 
 
 viewIntroduction : Html Msg

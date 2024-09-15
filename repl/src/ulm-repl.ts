@@ -374,6 +374,13 @@ class ReplInput extends HTMLElement {
           case 'scroll-to-bottom':
             requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
             break;
+          case 'remove-from-state':
+            if (Array.isArray(msg.data)) {
+              msg.data.forEach(name => ulm.removeFromState(name));
+            } else {
+              console.error('Expected a list of strings to remove from state');
+            };
+            break;
           default:
             console.warn("Unknown port message `fromElm`", msg);
         }
