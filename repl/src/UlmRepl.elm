@@ -13,6 +13,7 @@ import Html.Keyed
 import InteropDefinitions as Io
 import InteropPorts
 import Json.Decode
+import List.Extra
 import ModalDialog
 import Theme exposing (Theme)
 
@@ -84,6 +85,7 @@ type Msg
     | ToElm (Result Json.Decode.Error Io.ToElm)
     | SelectedTheme Theme
     | SetVisibilityOfTypeDefinitions Bool
+    | PressedEditButton Io.Timestamp
     | PressedClearButton
     | PressedRemoveButton Io.Timestamp
     | PressedRemoveAll
@@ -121,6 +123,14 @@ update msg model =
 
         CloseModal ->
             ( { model | modalDialog = Nothing }, Cmd.none )
+
+        PressedEditButton id ->
+            ( model
+            , model.history
+                |> List.Extra.find (\entry -> entry.id == id)
+                |> Maybe.map (\{ input } -> Io.ReplaceEnteredCode input |> InteropPorts.fromElm)
+                |> Maybe.withDefault Cmd.none
+            )
 
         PressedClearButton ->
             ( { model | modalDialog = Just ClearDialog }, Cmd.none )
@@ -383,7 +393,7 @@ view model =
 viewHistoryEntry : HistoryEntry -> ( String, Html Msg )
 viewHistoryEntry { id, input, result } =
     let
-        rest =
+        entry =
             case result of
                 Io.Problems problems ->
                     [ viewCode input
@@ -418,12 +428,17 @@ viewHistoryEntry { id, input, result } =
                            ]
     in
     ( String.fromFloat id
-    , Html.li []
-        (Html.button [ Html.Events.onClick <| PressedRemoveButton id ]
-            -- TODO add icon or screen reader caption
-            [ Html.text "x" ]
-            :: rest
-        )
+    , Html.li [] <|
+        Html.menu []
+            [ Html.button [ Html.Events.onClick <| PressedEditButton id ]
+                [ Html.text "edit" ]
+            , Html.button
+                [ Html.Events.onClick <| PressedRemoveButton id
+                , Html.Attributes.Aria.ariaLabel "Remove code"
+                ]
+                [ Html.span [ Html.Attributes.Aria.ariaHidden True ] [ Html.text "x" ] ]
+            ]
+            :: entry
     )
 
 

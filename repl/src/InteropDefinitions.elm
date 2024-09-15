@@ -39,6 +39,7 @@ type FromElm
     = TriggerCompile
     | ScrollToBottom
     | RemoveFromState (List String)
+    | ReplaceEnteredCode String
 
 
 type alias Timestamp =
@@ -101,7 +102,7 @@ default =
 fromElm : Encoder FromElm
 fromElm =
     TsEncode.union
-        (\vTriggerCompile vScrollToBottom vRemoveFromState value ->
+        (\vTriggerCompile vScrollToBottom vRemoveFromState vReplaceEnteredCode value ->
             case value of
                 TriggerCompile ->
                     vTriggerCompile ""
@@ -111,10 +112,14 @@ fromElm =
 
                 RemoveFromState name ->
                     vRemoveFromState name
+
+                ReplaceEnteredCode code ->
+                    vReplaceEnteredCode code
         )
         |> TsEncode.variantTagged "compile" TsEncode.string
         |> TsEncode.variantTagged "scroll-to-bottom" TsEncode.string
         |> TsEncode.variantTagged "remove-from-state" (TsEncode.list TsEncode.string)
+        |> TsEncode.variantTagged "replace-entered-code" TsEncode.string
         |> TsEncode.buildUnion
 
 

@@ -365,9 +365,10 @@ class ReplInput extends HTMLElement {
           case "compile":
             this.compile();
             break;
-          case "replace-code":
+          case "replace-entered-code":
             this._editor?.setValue(msg.data);
-            this.compile();
+            this._editor?.focus();
+            this.check();
             break;
           case 'scroll-to-bottom':
             requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
