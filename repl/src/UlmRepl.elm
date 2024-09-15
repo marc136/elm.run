@@ -383,7 +383,12 @@ view model =
                 , Html.br [] []
                 , Html.text "If you wish to see more than the hints, you can press Ctrl+Enter or the dedicated button to `run code` and I will print the full compiler output and add it to the history."
                 , Html.br [] []
-                , Html.text "You can create type definitions and functions, import packages from the Elm core libraries, and replace a definition or declaration by using the same name again."
+
+                -- TODO fix imports
+                -- , Html.text "You can create type definitions and functions, import packages from the "
+                -- , textLink { href = "https://dark.elm.dmy.fr/packages/elm/core/latest", text = "Elm core libraries" }
+                -- , Html.text ", and replace a definition or declaration by using the same name again."
+                -- TODO imports are not shown and also not available for later execution
                 ]
             ]
         , Html.nav [ Html.Attributes.class "sticky" ]

@@ -376,6 +376,7 @@ class ReplInput extends HTMLElement {
               'String.repeat',
               'again : String -> String\nagain =\n    String.repeat 2',
               'again "Hello"',
+              'import Dict as Map exposing (Dict)',
             ];
             for (const input of examples) {
               const event = {
