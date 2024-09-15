@@ -359,11 +359,34 @@ class ReplInput extends HTMLElement {
       throw new Error("No Elm App was attached to the editor");
     }
     if (ReplInput.elmApp.ports.interopFromElm) {
-      ReplInput.elmApp.ports.interopFromElm.subscribe((msg) => {
+      ReplInput.elmApp.ports.interopFromElm.subscribe(async (msg) => {
         console.info("port message `fromElm`", msg);
         switch (msg.tag) {
           case "compile":
             this.compile();
+            break;
+          case "enter-example-code":
+            const examples = [
+              'type alias Tree =\n    { name: String\n    }',
+              'elm = Tree "Elm"',
+              '1',
+              'double : Int -> Int\ndouble number =\n    2 * number',
+              'double 1',
+              'double 21',
+              'String.repeat',
+              'again : String -> String\nagain =\n    String.repeat 2',
+              'again "Hello"',
+            ];
+            for (const input of examples) {
+              const event = {
+                tag: 'evaluated',
+                id: performance.now(),
+                input,
+                result: await repl(input, true),
+              }
+              // TODO extract into one function that is used by `compile`, too?
+              ReplInput.elmApp?.ports.interopToElm.send(event);
+            }
             break;
           case "replace-entered-code":
             this._editor?.setValue(msg.data);
@@ -421,7 +444,9 @@ class ReplInput extends HTMLElement {
         break;
     }
 
-    ReplInput.elmApp?.ports.interopToElm.send({ tag: 'evaluated', ...compiled })
+    const result = { tag: 'evaluated', ...compiled };
+    ReplInput.elmApp?.ports.interopToElm.send(result);
+    return result;
   }
 
   private async tryCompile(persistState: false) {

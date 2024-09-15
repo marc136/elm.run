@@ -86,6 +86,7 @@ type Msg
     | ToElm (Result Json.Decode.Error Io.ToElm)
     | SelectedTheme Theme
     | SetVisibilityOfTypeDefinitions Bool
+    | ClickedExampleCode
     | PressedEditButton Io.Timestamp
     | PressedClearButton
     | PressedRemoveButton Io.Timestamp
@@ -116,6 +117,9 @@ update msg model =
 
         SetVisibilityOfTypeDefinitions bool ->
             ( { model | typeDefinitionsVisible = bool }, Cmd.none )
+
+        ClickedExampleCode ->
+            ( model, InteropPorts.fromElm Io.EnterExampleCode )
 
         TriggeredCompile ->
             ( model
@@ -362,7 +366,7 @@ view model =
                 ]
             , Html.p []
                 [ Html.text "If you are unsure how to begin, we can start with "
-                , Html.a [ Html.Attributes.href "#example" ] [ Html.text "example code" ]
+                , Html.a [ Html.Attributes.href "#example", Html.Events.onClick ClickedExampleCode ] [ Html.text "example code" ]
                 , Html.text ", or you can have a look at "
                 , Html.a
                     [ Html.Attributes.href "https://elmcraft.org/learn" ]
