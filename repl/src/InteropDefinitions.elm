@@ -10,7 +10,6 @@ module InteropDefinitions exposing
     , Output
     , Timestamp
     , ToElm(..)
-    , compileResult
     , default
     , interop
     )
@@ -46,10 +45,7 @@ type alias Timestamp =
 
 
 type ToElm
-    = OnCompileResult CompileResult
-    | Executed { input : Input, output : Output }
-    | ClearHint
-    | CheckedTextInput CheckedInput
+    = CheckedTextInput CheckedInput
     | EvaluatedTextInput EvaluatedTextInputData
 
 
@@ -120,14 +116,8 @@ fromElm =
 toElm : Decoder ToElm
 toElm =
     TsDecode.discriminatedUnion "tag"
-        [ ( "compile-result", compileResultEvent )
-        , ( "evaluated", evaluated )
-        , ( "executed", executedEvent )
-        , ( "clear-hint", TsDecode.succeed ClearHint )
+        [ ( "evaluated", evaluated )
         , ( "checked-input", TsDecode.map CheckedTextInput checkedInput )
-
-        --   , TsDecode.field "detail" (TsDecode.map OnCompileResult compileResult)
-        --   )
         ]
 
 
@@ -176,26 +166,6 @@ newDecl =
         (TsDecode.field "value" TsDecode.string)
 
 
-executedEvent : Decoder ToElm
-executedEvent =
-    TsDecode.map2 (\input output -> Executed { input = input, output = output })
-        (TsDecode.field "input" TsDecode.string)
-        (TsDecode.field "output" outputDecoder)
-
-
-outputDecoder : Decoder Output
-outputDecoder =
-    TsDecode.map3 (\name value type_ -> { name = name, value = AnsiExtra.parse value, type_ = type_ })
-        (TsDecode.field "name" (TsDecode.maybe TsDecode.string))
-        (TsDecode.field "value" TsDecode.string)
-        (TsDecode.field "type" TsDecode.string)
-
-
-compileResultEvent : Decoder ToElm
-compileResultEvent =
-    TsDecode.field "detail" (TsDecode.map OnCompileResult compileResult)
-
-
 evaluated : Decoder ToElm
 evaluated =
     TsDecode.map3 (\input id result -> EvaluatedTextInput { input = input, id = id, result = result })
@@ -206,10 +176,6 @@ evaluated =
 
 evaluatedResult : Decoder EvaluatedInput
 evaluatedResult =
-    -- NoOutput { id : Timestamp, input : String }
-    -- | EvaluatedDeclaration { id : Timestamp, input : String, name : String, type_ : String, value : String }
-    -- | EvaluatedExpression { id : Timestamp, input : String, type_ : String, value : String }
-    -- | Failure { id : Timestamp, input : String, problems : List Data.Problem.Problem }
     TsDecode.discriminatedUnion "type"
         [ ( "new-decl"
           , TsDecode.field "value" <|
@@ -225,52 +191,9 @@ evaluatedResult =
                     (TsDecode.field "value" TsDecode.string)
           )
         , ( "compile-errors"
-            -- CompilerReport in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs
-            --   , TsDecode.map (\err -> Data.Problem.toIndexedProblems err |> Problems)
-            --         -- (TsDecode.field "errors" (TsDecode.list TsDecode.value))
-            --         (TsDecode.decoder Elm.Error.decoder)
           , TsDecode.value
                 |> TsDecode.unknownAndThen (\_ -> Elm.Error.decoder)
                 |> TsDecode.map (Problems << Data.Problem.toIndexedProblems)
-            -- |> TsDecode.andThenDecoder
-            -- -- |> Json.Decode.decodeValue Elm.Error.decoder
-            -- |> Result.andThen (Json.Decode.decodeValue Elm.Error.decoder)
-          )
-
-        --     , ( "error"
-        --         -- Report in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs
-        --       , TsDecode.map3 (\path title message -> CompileError { path = path, title = title, message = message })
-        --             (TsDecode.field "path" TsDecode.string)
-        --             (TsDecode.field "title" TsDecode.string)
-        --             (TsDecode.field "message" TsDecode.string)
-        --       )
-        ]
-
-
-
--- TsDecode.fail "TODO evaluatedResult"
-
-
-compileResult : Decoder CompileResult
-compileResult =
-    -- TODO rename to evaluatedResult
-    TsDecode.discriminatedUnion "type"
-        [ ( "success"
-          , TsDecode.map2 (\file name -> CompileSuccess { file = file, name = name })
-                (TsDecode.field "file" TsDecode.string)
-                (TsDecode.field "name" TsDecode.string)
-          )
-        , ( "compile-errors"
-            -- CompilerReport in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs
-          , TsDecode.map (\errors -> CompileErrors { errors = errors })
-                (TsDecode.field "errors" (TsDecode.list TsDecode.value))
-          )
-        , ( "error"
-            -- Report in elm-compiler-wasm/builder/src/Reporting/Exit/Help.hs
-          , TsDecode.map3 (\path title message -> CompileError { path = path, title = title, message = message })
-                (TsDecode.field "path" TsDecode.string)
-                (TsDecode.field "title" TsDecode.string)
-                (TsDecode.field "message" TsDecode.string)
           )
         ]
 
