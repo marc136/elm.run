@@ -397,7 +397,10 @@ viewHistoryEntry { id, input, result } =
             case result of
                 Io.Problems problems ->
                     [ viewCode input
-                    , -- TODO remove `Jump to problem` button
+                    , -- TODO enable jump to problem again?
+                      -- Would need to replace the input, focus it and move the cursor.
+                      -- The cursor position needs to be adapted because the entered REPL text is
+                      -- wrapped into an Elm module.
                       Data.Problem.viewList (\_ -> NoOp) problems
                     ]
 

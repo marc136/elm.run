@@ -81,7 +81,9 @@ viewList onJumpToProblem problems =
             viewContainer
                 [ viewHeader
                     [ viewTitle problem.title
-                    , viewNavigation [ viewLocation onJumpToProblem problem.location ]
+
+                    -- TODO enable jump to problem again?
+                    -- , viewNavigation [ viewLocation onJumpToProblem problem.location ]
                     ]
                 , viewBody problem.message
                 ]
