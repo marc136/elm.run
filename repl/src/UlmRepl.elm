@@ -15,6 +15,8 @@ import InteropPorts
 import Json.Decode
 import List.Extra
 import ModalDialog
+import Svg
+import Svg.Attributes
 import Theme exposing (Theme)
 
 
@@ -46,7 +48,6 @@ type alias Model =
 
 
 type alias HistoryEntry =
-    -- TODO state to mark declaration as outdated, needed for visual and for clean up
     { input : Io.Input, id : Io.Timestamp, result : Io.EvaluatedInput }
 
 
@@ -199,18 +200,21 @@ update msg model =
 
         PressedRemoveAll ->
             ( { model | history = [] }
-            , List.filterMap
-                (\entry ->
-                    case entry.result of
-                        Io.EvaluatedDeclaration { name } ->
-                            Just name
+            , [ List.filterMap
+                    (\entry ->
+                        case entry.result of
+                            Io.EvaluatedDeclaration { name } ->
+                                Just name
 
-                        _ ->
-                            Nothing
-                )
-                model.history
-                |> Io.RemoveFromState
-                |> InteropPorts.fromElm
+                            _ ->
+                                Nothing
+                    )
+                    model.history
+                    |> Io.RemoveFromState
+                    |> InteropPorts.fromElm
+              , Io.ReplaceEnteredCode "" |> InteropPorts.fromElm
+              ]
+                |> Cmd.batch
             )
 
         PressedRemoveButton id ->
@@ -342,27 +346,50 @@ view model =
         [ Html.Attributes.id "main"
         , Theme.toAttribute model.theme
         ]
-        [ Html.h1 [] [ Html.text "Hello and welcome to the elm.run REPL" ]
-        , Theme.htmlSelectElement SelectedTheme
-        , Html.p []
-            [ Html.text "I'm glad you are here. Do you want to start with "
-            , Html.a
-                [ Html.Attributes.href "#TODO-examples" ]
-                [ Html.text "example code" ]
-            , Html.text " or a "
-            , Html.a
-                [ Html.Attributes.href "#TODO-tour" ]
-                [ Html.text "tour of the Elm programming language" ]
-            , Html.text "?"
-            , Html.br [] []
-            , Html.text "If not, feel free to enter code below that I will try my best to read what you type and provide useful hints about types and what it would evaluate to. When ready, press Ctrl+Enter to evaluate the code and add it to the history."
-            , Html.br [] []
-            , Html.text "You can create type definitions and functions, replace a definition or declaration by using the same name again."
+        [ Html.header []
+            [ Svg.svg []
+                [ Svg.use [ Svg.Attributes.xlinkHref "#run-logo" ] []
+                ]
+            , Html.h1 []
+                [ Html.text "Welcome to the elm.run REPL"
+                ]
+            , Theme.htmlSelectElement SelectedTheme
             ]
-        , Html.p [] [ Html.text "The code you write here does not leave your browser. The Elm compiler runs directly as a WASM module and generates JavaScript that is immediately executed." ]
+        , Html.div [ Html.Attributes.id "intro" ]
+            [ Html.p []
+                [ Html.text "I'm glad you are here. "
+                , Html.text "How could I read, eval and print Elm code in a loop if noone were here to enter code? "
+                ]
+            , Html.p []
+                [ Html.text "If you are unsure how to begin, we can start with "
+                , Html.a [ Html.Attributes.href "#example" ] [ Html.text "example code" ]
+                , Html.text ", or you can have a look at "
+                , Html.a
+                    [ Html.Attributes.href "https://elmcraft.org/learn" ]
+                    [ Html.text "learning materials" ]
+                , Html.text " for the "
+                , Html.a [ Html.Attributes.href "https://elm-lang.org" ]
+                    [ Html.text "Elm programming language" ]
+                , Html.text ", first."
+                , Html.br [] []
+                , Html.text "If you are all set, great!"
+                ]
+            , Html.p []
+                [ Html.text "You can enter code below, and I will evaluate it and print results and type hints as you type."
+                , Html.br [] []
+                , Html.text "If you wish to see more than the hints, you can press Ctrl+Enter or the dedicated button to `run code` and I will print the full compiler output and add it to the history."
+                , Html.br [] []
+                , Html.text "You can create type definitions and functions, import packages from the Elm core libraries, and replace a definition or declaration by using the same name again."
+                ]
+            ]
         , Html.nav [ Html.Attributes.class "sticky" ]
-            [ Html.span [ Html.Attributes.class "visible-if-sticky" ] [ Html.text "elm.run REPL" ]
-            , Html.menu []
+            [ Html.span [ Html.Attributes.class "visible-if-sticky" ]
+                [ Svg.svg [ Svg.Attributes.height "36", Svg.Attributes.width "36" ]
+                    [ Svg.use [ Svg.Attributes.xlinkHref "#run-logo" ] []
+                    ]
+                , Html.text "elm.run REPL"
+                ]
+            , Html.menu [ Html.Attributes.class "center" ]
                 [ Html.Extra.viewIfLazy (List.length model.history > 0)
                     (\() ->
                         Html.button [ Html.Events.onClick PressedClearButton ]
@@ -376,7 +403,7 @@ view model =
         , Html.Keyed.ul [ Html.Attributes.class "logs monospace" ] <|
             List.map viewHistoryEntry <|
                 List.reverse model.history
-        , Html.div [ Html.Attributes.class "input-row" ]
+        , Html.div [ Html.Attributes.id "input-row" ]
             [ Html.button
                 [ Html.Events.onClick TriggeredCompile
                 , Html.Attributes.title "Run code"
@@ -386,6 +413,7 @@ view model =
                 ]
             , inputBox model
             ]
+        , Html.footer [] [ Html.small [] [ Html.text "The code you write here does not leave your browser." ] ]
         , viewModalDialog model
         ]
 
