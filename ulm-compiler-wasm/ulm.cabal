@@ -51,7 +51,7 @@ extra-doc-files:    CHANGELOG.md
 common shared
     ghc-options:        -Wall
     default-language:   GHC2021
-    build-depends:      base >= 4 && < 5 
+    build-depends:      base >= 4 && < 5
 
 test-suite test
     import:         shared
