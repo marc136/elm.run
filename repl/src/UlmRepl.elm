@@ -242,21 +242,6 @@ updateToElm msg model =
             , Cmd.none
             )
 
-        Io.OnCompileResult (Io.CompileSuccess _) ->
-            Debug.todo "branch 'OnCompileResult (CompileSuccess _)' not implemented"
-
-        Io.OnCompileResult (Io.CompileError _) ->
-            Debug.todo "branch 'OnCompileResult (CompileError _)' not implemented"
-
-        Io.OnCompileResult (Io.CompileErrors { errors }) ->
-            ( model |> clearHint, Cmd.none )
-
-        Io.Executed _ ->
-            Debug.todo "branch 'Executed _' not implemented"
-
-        Io.ClearHint ->
-            Debug.todo "branch 'ClearHint' not implemented"
-
         Io.EvaluatedTextInput data ->
             ( { model | history = enhanceEvaluatedTextInput data :: model.history }
                 |> clearHint
@@ -367,19 +352,6 @@ view model =
                 , Html.text "Run code"
                 ]
             , inputBox model
-            ]
-        , Html.menu []
-            [ let
-                caption =
-                    if model.typeDefinitionsVisible then
-                        "Hide type definitions"
-
-                    else
-                        "Show type definitions"
-              in
-              Html.button
-                [ Html.Events.onClick <| SetVisibilityOfTypeDefinitions <| not model.typeDefinitionsVisible ]
-                [ Html.text caption ]
             ]
         , viewModalDialog model
         ]

@@ -5,7 +5,7 @@ import {
   unpackInto,
   writeFile,
 } from "../../ulm-editor/src/fs.ts";
-import type { Compiler } from "./ulm-wasm.ts";
+import type { Compiler } from "./repl-wasm.ts";
 import { parseTarGzip } from "nanotar";
 import type { Elm, ElmApp } from "./UlmRepl.elm";
 import { detectPreferredColorScheme, ColorSchemeSelector, type Scheme } from "./theme-selector.ts";

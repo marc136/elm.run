@@ -1,6 +1,5 @@
 import { WASI, File, OpenFile, ConsoleStdout } from "@bjorn3/browser_wasi_shim";
 import type { Fd } from "@bjorn3/browser_wasi_shim";
-import type { AsCustomEvent } from './ts-interop-helpers'
 
 // import ulmWasm from '../../www/generated/ulm.wasm' 
 import ulmJs from '../../www/generated/repl'

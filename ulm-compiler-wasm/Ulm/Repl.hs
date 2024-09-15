@@ -200,13 +200,6 @@ data EntryType
 compile :: Ulm.ReadArtifacts.ArtifactsForWasm -> ReplState -> EntryType -> (ReplState, Outcome)
 compile (Ulm.ReadArtifacts.ArtifactsForWasm interfaces objects) state@(ReplState imports types decls) entryType =
   let
-    -- source =
-    --   case entryType of
-    --     ImportEntry name src -> toByteString (state { _imports = Map.insert name (B.byteString src) imports }) OutputNothing
-    --     TypeEntry   name src -> toByteString (state { _types = Map.insert name (B.byteString src) types }) OutputNothing
-    --     DeclEntry   name src -> toByteString (state { _decls = Map.insert name (B.byteString src) decls }) (OutputDecl name)
-    --     ExprEntry        src -> toByteString state (OutputExpr src)
-    --
     (nextState, output) =
       case entryType of
         ImportEntry name src -> (state { _imports = Map.insert name (B.byteString src) imports }, OutputNothing)
@@ -215,7 +208,8 @@ compile (Ulm.ReadArtifacts.ArtifactsForWasm interfaces objects) state@(ReplState
         ExprEntry        src -> (state, OutputExpr src)
         --Partial          src -> (state, Partial)
 
-    source = traceShowId $ toByteString nextState output
+    source :: BS.ByteString
+    source = traceShowId $ toSourceCode nextState output
   in
   case
     do  -- modul :: Either Error.Error Src.Module
@@ -487,8 +481,9 @@ data Output
 -- TO BYTESTRING
 
 
-toByteString :: ReplState -> Output -> BS.ByteString
-toByteString (ReplState imports types decls) output =
+-- Name in Elm compiler: `toByteString``
+toSourceCode :: ReplState -> Output -> BS.ByteString
+toSourceCode (ReplState imports types decls) output =
   LBS.toStrict $ B.toLazyByteString $
     mconcat
       [ "module ", N.toBuilder N.replModule, " exposing (..)\n"
