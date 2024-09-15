@@ -377,6 +377,7 @@ class ReplInput extends HTMLElement {
               'again : String -> String\nagain =\n    String.repeat 2',
               'again "Hello"',
               'import Dict as Map exposing (Dict)',
+              'Map.empty',
             ];
             for (const input of examples) {
               const event = {
@@ -446,6 +447,7 @@ class ReplInput extends HTMLElement {
     }
 
     const result = { tag: 'evaluated', ...compiled };
+    console.info('Sending to Elm:', result);
     ReplInput.elmApp?.ports.interopToElm.send(result);
     return result;
   }

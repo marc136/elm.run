@@ -71,6 +71,7 @@ type EvaluatedInput
     | EvaluatedDeclaration NewDeclaration
     | EvaluatedExpression { type_ : String, value : AnsiExtra.Parsed }
     | Problems (List Data.Problem.Problem)
+    | Import
 
 
 type alias Input =
@@ -209,6 +210,9 @@ evaluatedResult =
           , TsDecode.value
                 |> TsDecode.unknownAndThen (\_ -> Elm.Error.decoder)
                 |> TsDecode.map (Problems << Data.Problem.toIndexedProblems)
+          )
+        , ( "new-import"
+          , TsDecode.succeed Import
           )
         ]
 

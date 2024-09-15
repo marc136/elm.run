@@ -156,6 +156,9 @@ update msg model =
 
                             Io.Problems _ ->
                                 False
+
+                            Io.Import ->
+                                True
                     )
             , Cmd.none
             )
@@ -368,12 +371,9 @@ view model =
                 [ Html.text "If you are unsure how to begin, we can start with "
                 , Html.a [ Html.Attributes.href "#example", Html.Events.onClick ClickedExampleCode ] [ Html.text "example code" ]
                 , Html.text ", or you can have a look at "
-                , Html.a
-                    [ Html.Attributes.href "https://elmcraft.org/learn" ]
-                    [ Html.text "learning materials" ]
+                , textLink { href = "https://elmcraft.org/learn", text = "learning materials" }
                 , Html.text " for the "
-                , Html.a [ Html.Attributes.href "https://elm-lang.org" ]
-                    [ Html.text "Elm programming language" ]
+                , textLink { href = "https://elm-lang.org", text = "Elm programming language" }
                 , Html.text ", first."
                 , Html.br [] []
                 , Html.text "If you are all set, great!"
@@ -383,12 +383,9 @@ view model =
                 , Html.br [] []
                 , Html.text "If you wish to see more than the hints, you can press Ctrl+Enter or the dedicated button to `run code` and I will print the full compiler output and add it to the history."
                 , Html.br [] []
-
-                -- TODO fix imports
-                -- , Html.text "You can create type definitions and functions, import packages from the "
-                -- , textLink { href = "https://dark.elm.dmy.fr/packages/elm/core/latest", text = "Elm core libraries" }
-                -- , Html.text ", and replace a definition or declaration by using the same name again."
-                -- TODO imports are not shown and also not available for later execution
+                , Html.text "You can create type definitions and functions, import packages from the "
+                , textLink { href = "https://dark.elm.dmy.fr/packages/elm/core/latest", text = "Elm core libraries" }
+                , Html.text ", and replace a definition or declaration by using the same name again."
                 ]
             ]
         , Html.nav [ Html.Attributes.class "sticky" ]
@@ -425,6 +422,12 @@ view model =
         , Html.footer [] [ Html.small [] [ Html.text "The code you write here does not leave your browser." ] ]
         , viewModalDialog model
         ]
+
+
+textLink : { href : String, text : String } -> Html msg
+textLink { href, text } =
+    Html.a [ Html.Attributes.href href, Html.Attributes.target "_blank" ]
+        [ Html.text text ]
 
 
 viewHistoryEntry : HistoryEntry -> ( String, Html Msg )
@@ -466,6 +469,9 @@ viewHistoryEntry { id, input, result } =
                         ++ [ Html.text " : "
                            , viewType type_
                            ]
+
+                Io.Import ->
+                    [ viewCode input ]
     in
     ( String.fromFloat id
     , Html.li [] <|
