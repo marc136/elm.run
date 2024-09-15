@@ -435,6 +435,9 @@ class ReplInput extends HTMLElement {
         const result = await repl(code, persistState);
         // this.emit("compile-result", result);
         return { input: code, id: now, result };
+      } else {
+        // To clear the type hint when input was fully deleted
+        return { input: '', id: now, result: { type: 'nothing' } }
       }
     } catch (ex) {
       console.error("compile failed", ex);
