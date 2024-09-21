@@ -69,39 +69,40 @@ async function runElmInit() {
   const result = await fetch("/elm-all-examples-package-artifacts.tar.gz");
   const tar = await parseTarGzip(await result.arrayBuffer());
   console.log("tar", tar);
-  await unpackInto("/elm-home/0.19.1/packages", tar);
+  await unpackInto({ dest: "/elm-home/0.19.1/packages", tar });
 
   await writeFile(
     "/elm.json",
     `{
-        "type": "application",
-        "source-directories": [
-            "src"
-        ],
-        "elm-version": "0.19.1",
-        "dependencies": {
-            "direct": {
-                "elm/browser": "1.0.2",
-                "elm/core": "1.0.5",
-                "elm/html": "1.0.0",
-                "elm/http": "2.0.0",
-                "elm/random": "1.0.0",
-                "elm/svg": "1.0.1",
-                "elm/time": "1.0.0"
-            },
-            "indirect": {
-                "elm/bytes": "1.0.8",
-                "elm/file": "1.0.5",
-                "elm/json": "1.1.3",
-                "elm/url": "1.0.0",
-                "elm/virtual-dom": "1.0.3"
-            }
-        },
-        "test-dependencies": {
-            "direct": {},
-            "indirect": {}
-        }
-    }`,
+  "type": "application",
+  "source-directories": [
+      "src"
+  ],
+  "elm-version": "0.19.1",
+  "dependencies": {
+      "direct": {
+          "elm/browser": "1.0.2",
+          "elm/core": "1.0.5",
+          "elm/html": "1.0.0",
+          "elm/http": "2.0.0",
+          "elm/random": "1.0.0",
+          "elm/svg": "1.0.1",
+          "elm/time": "1.0.0"
+      },
+      "indirect": {
+          "elm/bytes": "1.0.8",
+          "elm/file": "1.0.5",
+          "elm/json": "1.1.3",
+          "elm/url": "1.0.0",
+          "elm/virtual-dom": "1.0.3"
+      }
+  },
+  "test-dependencies": {
+      "direct": {},
+      "indirect": {}
+  }
+}
+`,
   );
 
   await loadPackageRegistry();
@@ -120,7 +121,40 @@ async function wip() {
   console.warn("🚧 ulm.wip");
 
   printFs();
+
+  // TODO load from package proxy
+  // https://github.com/elm-community/result-extra/archive/refs/tags/2.4.0.tar.gz
+  const org = "elm-community";
+  const pkg = "result-extra";
+  const version = "2.4.0";
+  const fetched = await fetch(
+    `/package-proxy/elm-community/${pkg}-${version}.tar.gz`,
+  );
+  const tar = await parseTarGzip(await fetched.arrayBuffer());
+  const dest = `/elm-home/0.19.1/packages/${org}/${pkg}`;
+  console.info(
+    `Downloaded package ${org}/${pkg}/${version} and will unpack it`,
+    { dest, tar },
+  );
+  await unpackInto({
+    dest,
+    tar,
+    replace: `${pkg}-${version}`,
+    replaceValue: version,
+  });
+
+  printFs();
+
+  // There is an issue with writing elm.json if the content is shorter than before:
+  // The underlying ArrayBuffer of the virtual fs is not trimmed in size, and contains
+  // additional data that makes it invalid.
+  // I could try to fill it with spaces from wasm side similar to this?
+  // fs.dir.contents.get("elm.json").data.fill(0x20);
+
+  const result = await ulm.wip(`${org}/${pkg}`);
+
   console.warn("🚧 ulm.wip", result);
+  console.log("!!elm.json", await readFileToString("/elm.json"));
 }
 
 async function compile(file: string) {

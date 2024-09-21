@@ -143,13 +143,17 @@ library
 
     -- Modules exported by the library.
     exposed-modules:
+        Elm.Package
+        Json.Decode
         Json.Encode
+        Json.String
         ToStringHelper
         Ulm.Build
         Ulm.Deps.Registry
         Ulm.Deps.Solver
         Ulm.Details
         Ulm.Generate
+        Ulm.Install
         Ulm.Make
         Ulm.Paths
         Ulm.ReadArtifacts
@@ -157,7 +161,6 @@ library
         Ulm.Reporting.Error
         Ulm.Reporting.Exit
         Ulm.Repl
-
         Ulm.Repl.Lib
 
     -- Modules included in this executable, other than Main.
@@ -197,7 +200,6 @@ library
         Elm.Interface
         Elm.Kernel
         Elm.ModuleName
-        Elm.Package
         Elm.String
         Elm.Version
         File
@@ -207,8 +209,6 @@ library
         Generate.JavaScript.Functions
         Generate.JavaScript.Name
         Generate.Mode
-        Json.Decode
-        Json.String
         Nitpick.PatternMatches
         Optimize.Case
         Optimize.DecisionTree

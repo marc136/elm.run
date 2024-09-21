@@ -7,16 +7,16 @@ So I'm trying to load an `elm.json` file now from the current directory.
 I started inside `builder/src/Elm/Details.hs` with the `load` function, but I don't know if getting the file modification time of `elm.json` will be possible. So I'm trying to skipt that for now.
 I will also skip reading `Stuff.details` from `./elm-stuff/0.19.1/elm.d` which contains info about the last run build (like time), so I can skip ahead to the `generate` fn in `Details.hs` because that will always be executed if something needs to be compiled.
 
-The `generate` fn calls `initEnv`, which uses `Solver.initEnv` and contacts the elm package server (so it won't work directly in WASM).  
+The `generate` fn calls `initEnv`, which uses `Solver.initEnv` and contacts the elm package server (so it won't work directly in WASM).
 So I'll try to only extract `Outline.read` (which reads the contents of the elm.json file) from there and then run `verifyApp`.
 Maybe I'll need to fake a valid environment that knows about packages (what `builder/src/Deps/Sover` does). But first I will try to ignore that.
 
-From there I only want to use `verifyDependencies` in general, and specificially `build` that creates `artifacts.dat` files.  
+From there I only want to use `verifyDependencies` in general, and specificially `build` that creates `artifacts.dat` files.
 As a first test, I try to build the dependency `elm-community/maybe-extra/5.3.0` which has no indirect dependencies and only one file.
 
 ---
 
-I removed everything and started again from the top with `Details.load`.  
+I removed everything and started again from the top with `Details.load`.
 I cloned `builder/src/Elm/Details.hs` to `Ulm/Details.hs` and then copied everything that was necessary.
 
 I skipped running `build` so far by always providing a pre-built `artifacts.dat` for every dependency from my own ELM_HOME dir.
@@ -27,7 +27,7 @@ For `build` I hardly had to do anything. I copied from the elm compiler and remo
 
 ---
 
-After `Details.load` now works, I want to to reuse parts of that code to replace the hardcoded `Ulm.ReadArtifacts` code.  
+After `Details.load` now works, I want to to reuse parts of that code to replace the hardcoded `Ulm.ReadArtifacts` code.
 That code might still be useful for a REPL or another editor that does not allow to install custom packages.
 
 But now I want to prepare building all dependencies to artifacts (and returning them) so I can start using that inside welmo (forked https://elm-lang.org/try editor).
@@ -42,7 +42,7 @@ With this shortcut in place to build one source file and its dependencies, I wan
 
 Starting with `runHelp` in elm-compiler-wasm/terminal/src/Make.hs I can first use `Details.load` to ensure that all dependencies are built and loaded, then skip ahead to `buildPaths` and then pick the path to compile a js file (which contains at least one `main` function).
 
-Note: I stopped with integrating `Make` fully and instead switched to getting a more minimal solution like the elm-lang.org/try editor or ellie working.  
+Note: I stopped with integrating `Make` fully and instead switched to getting a more minimal solution like the elm-lang.org/try editor or ellie working.
 I will come back to building multipler user-generated Elm files after that.
 
 ---
@@ -114,7 +114,7 @@ If one such build fails, I can trigger it again if I can catch the exception som
 
 ---
 
-I also checked the file size of prebuilt bundles, see also ./default-packages/README.md 
+I also checked the file size of prebuilt bundles, see also ./default-packages/README.md
 
 1. The default packages that elm-init installs (only source files) `default-packages.tar.gz` is 193.3KiB
 2. If I also include http, random and url `default-with-http-random-url.tar.gz` grows to 230.3KiB
@@ -132,3 +132,57 @@ I decided to only include the `artifacts.dat` files, an empty `src` dir and `elm
 
 The `docs.json` files of those packages will be loaded when they are needed. Either when trying to open the (yet to fork) package doc viewer, or in the service worker for offline usage.
 
+---
+
+I did not document much while implementing the REPL, it was mostly exploration in Elm and how UX should be.
+
+---
+
+To allow installation of packages I cannot reuse the the worker/src/Endpoint/Compile.hs because it does not handle installing packages.
+
+My plan is to give the user a UI to select a package for installation, this will trigger the download from the package proxy. It will be unpacked and written to the "filesystem" where the wasm code will then try to load it.
+
+I need to find out if the dependency can be added to the Outline (= elm.json) file, or if there are package conflicts. But this should be part of the normal install and verifyApplication routine?
+
+Installation process: Starts in terminal/src/Install.hs where I first need to `makeAppPlan` (which returns a new Outline) and then `attemptChanges`.
+In `attemptChangesHelp` the new Outline will be written, and then `Details.verifyInstall` is executed. If verification fails, the old Outline is restored.
+Because I restrict it to apps, I can replace `Details.verifyInstall` with `Ulm.Deps.Details.verifyApp`.
+
+Copied the relevant bits from marc2.md
+
+```sh
+> curl https://package.elm-lang.org/packages/elm-community/result-extra/2.4.0/endpoint.json | jq
+{
+"url": "https://github.com/elm-community/result-extra/zipball/2.4.0/",
+"hash": "b892b3a901fd24ad56ac734cf8eeb68c635431e1"
+}
+
+# The Elm compiler generates artifacts.dat and docs.json as needed.
+
+> tree -h ~/.elm/0.19.1/packages/elm-community/result-extra/
+[4.0K]  /home/marc/.elm/0.19.1/packages/elm-community/result-extra/
+└── [4.0K]  2.4.0
+    ├── [9.1K]  artifacts.dat // Note: smaller than source code
+    ├── [8.8K]  docs.json
+    ├── [ 434]  elm.json
+    ├── [1.1K]  LICENSE
+    ├── [ 946]  README.md
+    └── [4.0K]  src
+        └── [4.0K]  Result
+            └── [ 10K]  Extra.elm
+```
+
+I instead followed the official docs https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives#source-code-archive-urls
+to download from such an url (.zip is also available)
+
+https://github.com/elm-community/result-extra/archive/refs/tags/2.4.0.tar.gz
+
+After it was downloaded and unpacked into the virtual file system, I can run the `verifyInstall` function which writes a new elm.json file.
+
+But there is an important issue: If the content is shorter than before, the wasm code will not truncate the ArrayBuffer.
+This additional data might break the sanitity of the json file.
+This will at latest hit me when I'm trying to remove installed packages.
+
+One option might be to look how to trim the file in the Haskell code. Maybe there is an optimization if a package is added then it won't check if the new file size will be smaller than before (happened for me only because I used an indentation of 8 chars before).
+Or maybe I will fill it with spaces 0x20?
+Not yet sure how to continue there.

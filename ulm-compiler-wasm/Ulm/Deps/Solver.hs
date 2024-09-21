@@ -7,8 +7,8 @@ module Ulm.Deps.Solver
   , Details(..)
   , verify
   --
-  -- , AppSolution(..)
-  -- , addToApp
+  , AppSolution(..)
+  , addToApp
   --
   -- , Env(..)
   -- , initEnv
@@ -79,7 +79,7 @@ data Result a
   -- | NoSolution
   | NoOfflineSolution
   | Err Exit.Solver
-
+  deriving (Show)
 
 
 -- VERIFY -- used by Elm.Details
@@ -107,6 +107,75 @@ addDeps (State _ _ constraints) name vsn =
   case Map.lookup (name, vsn) constraints of
     Just (Constraints _ deps) -> Details vsn deps
     Nothing                   -> error "compiler bug manifesting in Ulm.Deps.Solver.addDeps"
+
+  
+
+-- ADD TO APP - used in Install
+
+
+data AppSolution =
+  AppSolution
+    { _old :: Map.Map Pkg.Name V.Version
+    , _new :: Map.Map Pkg.Name V.Version
+    , _app :: Outline.AppOutline
+    }
+    deriving (Show)
+
+addToApp :: Ulm.Paths.PackageCache -> Registry.Registry -> Pkg.Name -> Outline.AppOutline -> IO (Result AppSolution)
+addToApp cache registry pkg outline@(Outline.AppOutline _ _ direct indirect testDirect testIndirect) =
+  let
+    allIndirects = Map.union indirect testIndirect
+    allDirects = Map.union direct testDirect
+    allDeps = Map.union allDirects allIndirects
+
+    attempt toConstraint deps caption =
+     traceShow ("attempt " ++ show pkg ++ " " ++ caption) $
+      try (Map.insert pkg C.anything (Map.map toConstraint deps))
+  in
+  case
+    oneOf
+      ( attempt C.exactly allDeps "from all deps")
+      [ attempt C.exactly allDirects "from all direct deps"
+      , attempt C.untilNextMinor allDirects "untilNextMinor from all direct deps"
+      , attempt C.untilNextMajor allDirects "untilNextMajor from all direct deps"
+      , attempt (\_ -> C.anything) allDirects "any direct dep"
+      ]
+  of
+    Solver solver ->
+      solver (State cache registry Map.empty)
+        (\s a _ -> return $ Ok (toApp s pkg outline allDeps a))
+        (\_     -> return NoOfflineSolution)
+        (\e     -> return $ Err e)
+
+
+toApp :: State -> Pkg.Name -> Outline.AppOutline -> Map.Map Pkg.Name V.Version -> Map.Map Pkg.Name V.Version -> AppSolution
+toApp (State _ _ constraints) pkg (Outline.AppOutline elm srcDirs direct _ testDirect _) old new =
+  let
+    d   = Map.intersection new (Map.insert pkg V.one direct)
+    i   = Map.difference (getTransitive constraints new (Map.toList d) Map.empty) d
+    td  = Map.intersection new (Map.delete pkg testDirect)
+    ti  = Map.difference new (Map.unions [d,i,td])
+  in
+  AppSolution old new (Outline.AppOutline elm srcDirs d i td ti)
+
+
+getTransitive :: Map.Map (Pkg.Name, V.Version) Constraints -> Map.Map Pkg.Name V.Version -> [(Pkg.Name,V.Version)] -> Map.Map Pkg.Name V.Version -> Map.Map Pkg.Name V.Version
+getTransitive constraints solution unvisited visited =
+  case unvisited of
+    [] ->
+      visited
+
+    info@(pkg,vsn) : infos ->
+      if Map.member pkg visited
+      then getTransitive constraints solution infos visited
+      else
+        let
+          newDeps = _deps (constraints ! info)
+          newUnvisited = Map.toList (Map.intersection solution (Map.difference newDeps visited))
+          newVisited = Map.insert pkg vsn visited
+        in
+        getTransitive constraints solution infos $
+          getTransitive constraints solution newUnvisited newVisited
 
 
 

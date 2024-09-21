@@ -7,7 +7,7 @@ module Ulm.Details
   , load
   , loadObjects
   , loadInterfaces
-  -- , verifyInstall
+  , verifyInstall
   --
   , loadArtifactsForApp
   , wipJson
@@ -163,6 +163,18 @@ loadObjects root (Details _ _ _ _ _ extras) =
 loadInterfaces :: FilePath -> Details -> IO (MVar (Maybe Interfaces))
 loadInterfaces root (Details _ _ _ _ _ extras) =
   fork (File.readBinary (Ulm.Paths.interfaces root))
+
+
+-- VERIFY INSTALL -- used by Install
+
+
+verifyInstall :: FilePath -> Registry.Registry -> Outline.Outline -> IO (Either Exit.Details ())
+verifyInstall root registry outline =
+  do  cache <- Ulm.Paths.getPackageCache
+      let env = Env () () root cache () () registry
+      case outline of
+        Outline.Pkg pkg -> Task.run (verifyPkg env pkg >> return ())
+        Outline.App app -> Task.run (verifyApp env app >> return ())
 
 
 
@@ -347,7 +359,6 @@ verifyDependencies env@(Env key scope root cache _ _ _) outline solution directD
       putMVar mvar mvars
       -- reads each "Task" from the MVar
       deps <- traverse readMVar mvars
-      putStrLn $ "deps" ++  show deps
       case traceShow "   with deps" $ traceShowId $ sequence deps of
         Left _ ->
           return $ Left $ Exit.DetailsBadDeps Ulm.Paths.packageCacheDir $
