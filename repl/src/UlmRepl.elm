@@ -422,7 +422,7 @@ view model =
                     (\() ->
                         Html.button [ Html.Events.onClick PressedClearButton ]
                             [ Icon.archiveBoxXMark [ Html.Attributes.Aria.ariaHidden True ]
-                            , Html.text "Clean up "
+                            , Html.text "clean up "
                             ]
                     )
                 ]
@@ -437,7 +437,7 @@ view model =
                 , Html.Attributes.title "Run code"
                 ]
                 [ Icon.playCircle [ Html.Attributes.Aria.ariaHidden True ]
-                , Html.text "Run code"
+                , Html.text "run code"
                 ]
             , inputBox model
             ]
