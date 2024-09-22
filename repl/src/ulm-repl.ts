@@ -1,14 +1,12 @@
-import {
-  fs,
-  printFs,
-  readFileToString,
-  unpackInto,
-  writeFile,
-} from "../../ulm-editor/src/fs.ts";
-import type { Compiler } from "./repl-wasm.ts";
+import { fs, printFs, unpackInto, writeFile } from "../../ulm-editor/src/fs.ts";
+import type { ReplCompiler } from "./repl-wasm.ts";
 import { parseTarGzip } from "nanotar";
-import type { Elm, ElmApp } from "./UlmRepl.elm";
-import { detectPreferredColorScheme, ColorSchemeSelector, type Scheme } from "./scheme-selector.ts";
+import type { ElmApp } from "./UlmRepl.elm";
+import {
+  ColorSchemeSelector,
+  detectPreferredColorScheme,
+  type Scheme,
+} from "./scheme-selector.ts";
 import { ModalDialog } from "./ModalDialog.ts";
 
 document.documentElement.dataset.theme = detectPreferredColorScheme();
@@ -22,72 +20,26 @@ export function init(sourceFile: string) {
     },
   });
 
-  setTimeout(() => {
-    console.warn('DEBUG: Adding history from js')
-    const entries = [
-      {
-        "input": "String.repeat",
-        "id": 16804,
-        "result": {
-          "type": "evaluated",
-          "value": {
-            "name": null,
-            "value": "\u001b[36m<function>\u001b[0m",
-            "type": "Int -> String -> String"
-          }
-        }
-      },
-      {
-        "input": "abc =\n  String.repeat",
-        "id": 17171,
-        "result": {
-          "type": "new-decl",
-          "name": "abc",
-          "value": {
-            "name": "abc",
-            "value": "\u001b[36m<function>\u001b[0m",
-            "type": "Int -> String -> String"
-          }
-        }
-      },
-      {
-        "input": "abc : Int -> String -> String\nabc =\n  String.repeat",
-        "id": 31396,
-        "result": {
-          "type": "new-decl",
-          "name": "abc",
-          "value": {
-            "name": "abc",
-            "value": "\u001b[36m<function>\u001b[0m",
-            "type": "Int -> String -> String"
-          }
-        }
-      },
-    ];
-    entries.forEach(entry => {
-      main.ports.interopToElm.send({ tag: 'evaluated', ...entry })
-    })
-
-  }, 200);
-
   ReplInput.elmApp = main;
   window.customElements.define("ulm-editor", ReplInput);
   window.customElements.define("scheme-selector", ColorSchemeSelector);
   window.customElements.define("modal-dialog", ModalDialog);
 
-  requestAnimationFrame(detectStickyElements)
+  requestAnimationFrame(detectStickyElements);
 }
 
 function detectStickyElements() {
-  // Used for sticky top navigation, see https://stackoverflow.com/a/57991537 
+  // Used for sticky top navigation, see https://stackoverflow.com/a/57991537
   const observer = new IntersectionObserver(
-    ([e]) => e.target.classList.toggle('is-stuck', e.intersectionRatio < 1),
-    { threshold: [1], rootMargin: '-1px 0px 0px 0px' }
+    ([e]) => e.target.classList.toggle("is-stuck", e.intersectionRatio < 1),
+    { threshold: [1], rootMargin: "-1px 0px 0px 0px" },
   );
-  document.querySelectorAll('.sticky').forEach(elem => observer.observe(elem));
+  document.querySelectorAll(".sticky").forEach((elem) =>
+    observer.observe(elem)
+  );
 }
 
-let ulm: Compiler | null = null;
+let ulm: ReplCompiler | null = null;
 
 async function initWasmCompiler() {
   if (ulm) return;
@@ -95,7 +47,7 @@ async function initWasmCompiler() {
   const { loadCompiler } = await import("./repl-wasm.ts");
   ulm = await loadCompiler(fs);
   await runElmInit();
-  console.warn("loaded wasm-editor");
+  console.info("initWasmCompiler() successful");
 }
 
 async function runElmInit() {
@@ -131,12 +83,6 @@ async function runElmInit() {
   // await loadPackageRegistry();
 }
 
-type ReplWasm = {
-  input: string;
-  started: EpochTimeStamp;
-  result: ReplResult;
-};
-
 type ReplResult =
   | { type: "new-import"; name: string }
   | { type: "new-type"; name: string }
@@ -153,7 +99,6 @@ type ReplResult =
     message: string;
   };
 
-
 async function repl(code: string, persistState: boolean): Promise<ReplResult> {
   if (!ulm) {
     const msg = "Cannot compile, the WASM compiler was not loaded";
@@ -161,22 +106,18 @@ async function repl(code: string, persistState: boolean): Promise<ReplResult> {
     return Promise.reject(msg);
   }
   code = code.trim();
-  // printFs();
-  const start = Date.now();
+  const start = performance.now();
   console.info("Read-eval-print", code);
-  // const result = await ulm.make(file)
-  const compile = persistState ? ulm.evaluate : ulm.check
-  const compiled = await compile(code);
+  const compile = persistState ? ulm.evaluate : ulm.check;
+  const result = await compile(code);
   console.info(
-    `Finished after ${((Date.now() - start) / 1000).toFixed(3)}s`,
-    compiled,
+    `Compiled in ${((performance.now() - start) / 1000).toFixed(3)}s`,
+    { input: code, result },
   );
-  const result = JSON.parse(compiled);
   // dynamic import of an ESM
   // const encoded = btoa(unescape(encodeURIComponent(code)));
   // const module = await import("data:text/javascript;base64," + encoded);
   // const computed = module.default();
-  console.info("result:", result);
   switch (result.type) {
     case "new-decl":
       return {
@@ -213,7 +154,7 @@ async function repl(code: string, persistState: boolean): Promise<ReplResult> {
   }
 }
 
-type Evaluated = { name: null | string, value: string, type: string }
+type Evaluated = { name: null | string; value: string; type: string };
 async function evaluateJs(code: string): Promise<Evaluated> {
   return new Promise((resolve, reject) => {
     // data is a string wrapped in a string like `'"function () {...}"'`
@@ -234,7 +175,7 @@ async function evaluateJs(code: string): Promise<Evaluated> {
 
     worker.onmessage = function (e) {
       clearTimeout(timeout);
-      console.warn(`evaluateJs ${typeof e.data} result`, e.data)
+      console.warn(`evaluateJs ${typeof e.data} result`, e.data);
       resolve(e.data);
     };
 
@@ -255,38 +196,31 @@ class ReplInput extends HTMLElement {
   private _source: string = "";
   private _theme: Scheme = "light";
   private _editor: unknown | null = null;
-  private _file: string | null = null;
-  private _lastBuild: URL | null = null;
 
   private _currentlyCompiling: EpochTimeStamp = 0;
   /** To detect after a compilation run if we need to start another */
   private _lastChange: EpochTimeStamp = 0;
 
   connectedCallback() {
-    this.addEventListener(
-      "compile-result",
-      (evt: CustomEvent) => console.error("compile-result", evt.detail),
-    );
-
-    this._theme = this.getAttribute('theme') as Scheme;
+    this._theme = this.getAttribute("theme") as Scheme;
 
     //@ts-expect-error TODO import codemirror instead
     this._editor = window.CodeMirror(this, {
-      autofocus: this.hasAttribute('autofocus') ?? false,
+      autofocus: this.hasAttribute("autofocus") ?? false,
       mode: "elm",
       lineNumbers: false,
       keyMap: "sublime",
       matchBrackets: true,
       autoCloseBrackets: true,
-      screenReaderLabel: 'Enter Elm code here to evaluate it',
+      screenReaderLabel: "Enter Elm code here to evaluate it",
       styleActiveLine: true,
       theme: this._theme,
-      value: this._source || '1 + 2',
+      value: this._source || 'elm = "delightful"',
       tabSize: 4,
       indentWithTabs: false,
       extraKeys: {
         Esc: (cm) => {
-          console.warn('TODO escape focus trap')
+          console.warn("TODO escape focus trap");
         },
         Tab: (cm) => {
           cm.execCommand("indentMore");
@@ -314,7 +248,7 @@ class ReplInput extends HTMLElement {
       this.emit("compiler", "loading");
       initWasmCompiler()
         .then(() => {
-          console.log('compiler ready')
+          console.log("compiler ready");
           this.emit("compiler", "ready");
           this.check();
         })
@@ -329,26 +263,14 @@ class ReplInput extends HTMLElement {
     this._source = "";
     this._currentlyCompiling = 0;
     this._lastChange = 0;
-    this._lastBuild = null;
   }
 
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
     console.log(`Attribute ${name} has changed.`, { oldValue, newValue });
 
     switch (name) {
-      case "file":
-        this._file = newValue;
-        if (newValue && newValue !== oldValue) {
-          readFileToString(newValue).then((content) => {
-            console.info(`Loaded file '${newValue}' from fs`);
-            this._source = content;
-            this._editor?.setValue(content);
-          });
-        }
-        break;
       case "theme":
         this._editor?.setOption("theme", newValue);
-
         break;
       default:
         console.warn(`TODO handle attribute "${name}" change`);
@@ -372,25 +294,25 @@ class ReplInput extends HTMLElement {
             break;
           case "enter-example-code":
             const examples = [
-              'type alias Tree =\n    { name: String\n    }',
+              "type alias Tree =\n    { name: String\n    }",
               'elm = Tree "Elm"',
-              '1',
-              'double : Int -> Int\ndouble number =\n    2 * number',
-              'double 1',
-              'double 21',
-              'String.repeat',
-              'again : String -> String\nagain =\n    String.repeat 2',
+              "1",
+              "double : Int -> Int\ndouble number =\n    2 * number",
+              "double 1",
+              "double 21",
+              "String.repeat",
+              "again : String -> String\nagain =\n    String.repeat 2",
               'again "Hello"',
-              'import Dict as Map exposing (Dict)',
-              'Map.empty',
+              "import Dict as Map exposing (Dict)",
+              "Map.empty",
             ];
             for (const input of examples) {
               const event = {
-                tag: 'evaluated',
+                tag: "evaluated",
                 id: performance.now(),
                 input,
                 result: await repl(input, true),
-              }
+              };
               // TODO extract into one function that is used by `compile`, too?
               ReplInput.elmApp?.ports.interopToElm.send(event);
             }
@@ -401,15 +323,15 @@ class ReplInput extends HTMLElement {
             this.check();
             scrollToBottom();
             break;
-          case 'scroll-to-bottom':
+          case "scroll-to-bottom":
             scrollToBottom();
             break;
-          case 'remove-from-state':
+          case "remove-from-state":
             if (Array.isArray(msg.data)) {
-              msg.data.forEach(name => ulm?.removeFromState(name));
+              msg.data.forEach((name) => ulm?.removeFromState(name));
             } else {
-              console.error('Expected a list of strings to remove from state');
-            };
+              console.error("Expected a list of strings to remove from state");
+            }
             break;
           default:
             console.warn("Unknown port message `fromElm`", msg);
@@ -423,15 +345,14 @@ class ReplInput extends HTMLElement {
   private async check() {
     const tried = await this.tryCompile(false);
     if (!tried?.result) return;
-    console.info({ tag: "checked-input", ...tried.result }, tried)
-    ReplInput.elmApp?.ports.interopToElm.send({ tag: "checked-input", ...tried.result });
+    const result = { tag: "checked-input", ...tried.result };
+    ReplInput.elmApp?.ports.interopToElm.send(result);
   }
 
   private async compile() {
     const compiled = await this.tryCompile(true);
     if (!compiled) return;
-    // this.emit("compile-result", result);
-    console.warn('compile-result', compiled);
+    console.warn("compile-result", compiled);
 
     switch (compiled.result.type) {
       case "new-decl":
@@ -440,7 +361,7 @@ class ReplInput extends HTMLElement {
       case "new-import":
       case "new-type":
         if (this._editor && this._editor.getValue().trim() == compiled.input) {
-          this._editor.setValue('')
+          this._editor.setValue("");
         }
         break;
 
@@ -452,13 +373,13 @@ class ReplInput extends HTMLElement {
         break;
     }
 
-    const result = { tag: 'evaluated', ...compiled };
-    console.info('Sending to Elm:', result);
+    const result = { tag: "evaluated", ...compiled };
+    console.info("Sending to Elm:", result);
     ReplInput.elmApp?.ports.interopToElm.send(result);
     return result;
   }
 
-  private async tryCompile(persistState: false) {
+  private async tryCompile(persistState: boolean = false) {
     if (!this._editor) {
       console.warn("Skipping comilation because editor is not set");
       return;
@@ -473,18 +394,17 @@ class ReplInput extends HTMLElement {
       const code: string = this._editor?.getValue().trim();
       if (code) {
         const result = await repl(code, persistState);
-        // this.emit("compile-result", result);
         return { input: code, id: now, result };
       } else {
         // To clear the type hint when input was fully deleted
-        return { input: '', id: now, result: { type: 'nothing' } }
+        return { input: "", id: now, result: { type: "nothing" } };
       }
     } catch (ex) {
       console.error("compile failed", ex);
     } finally {
       if (this._lastChange > this._currentlyCompiling) {
         // schedule a new build when idle
-        requestIdleCallback(this.tryCompile.bind(this));
+        requestIdleCallback(() => this.tryCompile(persistState));
       }
       this._currentlyCompiling = 0;
     }
@@ -492,7 +412,7 @@ class ReplInput extends HTMLElement {
 }
 
 async function scrollToBottom() {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     requestAnimationFrame(() => {
       window.scrollTo(0, document.body.scrollHeight);
       return resolve(null);
@@ -534,4 +454,4 @@ function debounce(func: Function) {
   };
 }
 
-export { printFs, ReplInput as UlmEditor, writeFile, ColorSchemeSelector };
+export { ColorSchemeSelector, printFs, ReplInput as UlmEditor, writeFile };

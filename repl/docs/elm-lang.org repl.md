@@ -1,8 +1,10 @@
 # REPL on official Elm language guide
 
-The [official Elm language guide](https://guide.elm-lang.org) has a REPL, which I describe a little below.
+The [official Elm language guide](https://guide.elm-lang.org) has a REPL, which
+I describe a little below.
 
-From view-source:https://guide.elm-lang.org/gitbook/gitbook-plugin-elm-repl/repl.js
+From
+view-source:https://guide.elm-lang.org/gitbook/gitbook-plugin-elm-repl/repl.js
 
 ```
 function init(id, node) {
@@ -33,9 +35,9 @@ function init(id, node) {
 }
 ```
 
-
-The REPL on guide.elm-lang.org is a closed-source Elm program.
-On every [enter] key press, it sends the input to the server which responds either with a command like `indent` or with js code.
+The REPL on guide.elm-lang.org is a closed-source Elm program. On every [enter]
+key press, it sends the input to the server which responds either with a command
+like `indent` or with js code.
 
 For example
 
@@ -45,7 +47,8 @@ For example
 
 returns `indent`
 
-And a second press to [enter] will then return the js code to calculate and print the result.
+And a second press to [enter] will then return the js code to calculate and
+print the result.
 
 ```
 {"imports":{},"types":{"User":"type alias User = { name : String, age : Int }\n"},"decls":{},"entry":"if 13 > 12 then\n  \"12\"\n  else\n  \"horst\"\n  "}
@@ -53,7 +56,8 @@ And a second press to [enter] will then return the js code to calculate and prin
 
 See ../elm-compiler-wasm/worker/src/Endpoint/Repl.hs to get started
 
-In the meantime, elmrepl.de has gotten a lot faster (it is not sponsored by netcup.de).
+In the meantime, elmrepl.de has gotten a lot faster (it is not sponsored by
+netcup.de).
 
 ---
 
@@ -65,9 +69,12 @@ Like the Elm REPL, two empty line breaks will force compilation.\
 The same should happen after Ctrl+Enter.
 
 When entering text, it will immediately try to evaluate the code.\
-Input should be debounced, and it should await compilation before starting a new one.\
-If a non-error result is reached, it will be rendered below the input area (maybe in more muted colors to indicate that it is not finished?)\
-I would also like to see partially applied functions there, `abc = List.map (\i -> i + 1)` should print
+Input should be debounced, and it should await compilation before starting a new
+one.\
+If a non-error result is reached, it will be rendered below the input area
+(maybe in more muted colors to indicate that it is not finished?)\
+I would also like to see partially applied functions there,
+`abc = List.map (\i -> i + 1)` should print
 
 ```json
 {
@@ -77,20 +84,25 @@ I would also like to see partially applied functions there, `abc = List.map (\i 
 }
 ```
 
-And if the user continues and enters a list of numbers, it should then fully run and display its content.
-
+And if the user continues and enters a list of numbers, it should then fully run
+and display its content.
 
 ## Behavior 2
 
 The input area is empty on start.
 
 When entering text, it will immediately try to evaluate the code.\
-Input should be debounced, and it should await compilation before starting a new one.\
+Input should be debounced, and it should await compilation before starting a new
+one.\
 If a non-error result is reached, it will show
-1. the type definition above what the user entered
-2. the value below input area (maybe in more muted colors to indicate that it is not finished?)\
-I would also like to see partially applied functions there, `abc = List.map (\i -> i + 1)` should print
 
-TODO I would like to trim empty lines above and below, but not yet sure if that will work well.
+1. the type definition above what the user entered
+2. the value below input area (maybe in more muted colors to indicate that it is
+   not finished?)\
+   I would also like to see partially applied functions there,
+   `abc = List.map (\i -> i + 1)` should print
+
+TODO I would like to trim empty lines above and below, but not yet sure if that
+will work well.
 
 There is an option to hide type definitions. This might be useful for beginners.
