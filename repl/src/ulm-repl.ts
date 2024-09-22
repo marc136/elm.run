@@ -189,6 +189,30 @@ async function evaluateJs(code: string): Promise<Evaluated> {
   });
 }
 
+const examples = [
+  [
+    "1 + 1",
+    "double : Int -> Int\ndouble number =\n    2 * number",
+    "double 1",
+  ],
+  [
+    "String.repeat",
+    "again : String -> String\nagain =\n    String.repeat 2",
+    'again "Hello"',
+  ],
+  [
+    "import Dict exposing (Dict)",
+    "Dict.empty",
+    'Dict.empty\n    |> Dict.insert "one" 1\n    |> Dict.insert "pi" Basics.pi',
+  ],
+  [
+    "type alias Tree =\n    { name: String\n    }",
+    'elm = Tree "Elm"',
+    "noTree : Tree\nnoTree =\n    { name = 7\n    }",
+    'aTree : Tree\naTree =\n    { name = "Elm"\n    }',
+  ],
+];
+
 class ReplInput extends HTMLElement {
   static observedAttributes = ["file", "theme"];
   static elmApp: ElmApp | null = null;
@@ -231,14 +255,12 @@ class ReplInput extends HTMLElement {
         "Cmd-S": (cm) => {
           this.emit("save", null);
         },
-        // "Ctrl-Enter": (cm) => { this.emit('save', null) }
         "Ctrl-Enter": (cm) => {
-          this.compile();
+          this.evaluate();
         },
       },
     });
     this._editor.on("changes", this.check.bind(this));
-    // this._editor.on("changes", (evt) => console.log("editor changes", evt));
 
     this._lastChange = 0;
     this._currentlyCompiling = 0;
@@ -290,30 +312,19 @@ class ReplInput extends HTMLElement {
         console.info("port message `fromElm`", msg);
         switch (msg.tag) {
           case "compile":
-            this.compile();
+            this.evaluate();
             break;
           case "enter-example-code":
-            const examples = [
-              "type alias Tree =\n    { name: String\n    }",
-              'elm = Tree "Elm"',
-              "1",
-              "double : Int -> Int\ndouble number =\n    2 * number",
-              "double 1",
-              "double 21",
-              "String.repeat",
-              "again : String -> String\nagain =\n    String.repeat 2",
-              'again "Hello"',
-              "import Dict as Map exposing (Dict)",
-              "Map.empty",
-            ];
-            for (const input of examples) {
+            const exampleIndex = Math.floor(Math.random() * examples.length);
+            console.log("Will show examples", exampleIndex);
+            const chosen = examples[exampleIndex];
+            for (const input of chosen) {
               const event = {
                 tag: "evaluated",
                 id: performance.now(),
                 input,
                 result: await repl(input, true),
               };
-              // TODO extract into one function that is used by `compile`, too?
               ReplInput.elmApp?.ports.interopToElm.send(event);
             }
             break;
@@ -349,10 +360,9 @@ class ReplInput extends HTMLElement {
     ReplInput.elmApp?.ports.interopToElm.send(result);
   }
 
-  private async compile() {
+  private async evaluate() {
     const compiled = await this.tryCompile(true);
     if (!compiled) return;
-    console.warn("compile-result", compiled);
 
     switch (compiled.result.type) {
       case "new-decl":
