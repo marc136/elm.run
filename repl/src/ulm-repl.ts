@@ -399,9 +399,10 @@ class ReplInput extends HTMLElement {
             this._editor?.setValue(msg.data);
             this._editor?.focus();
             this.check();
+            scrollToBottom();
             break;
           case 'scroll-to-bottom':
-            requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+            scrollToBottom();
             break;
           case 'remove-from-state':
             if (Array.isArray(msg.data)) {
@@ -488,6 +489,15 @@ class ReplInput extends HTMLElement {
       this._currentlyCompiling = 0;
     }
   }
+}
+
+async function scrollToBottom() {
+  return new Promise(resolve => {
+    requestAnimationFrame(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+      return resolve(null);
+    });
+  });
 }
 
 // Not yet supported in Safari 17.6
