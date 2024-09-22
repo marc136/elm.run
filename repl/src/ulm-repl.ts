@@ -8,7 +8,7 @@ import {
 import type { Compiler } from "./repl-wasm.ts";
 import { parseTarGzip } from "nanotar";
 import type { Elm, ElmApp } from "./UlmRepl.elm";
-import { detectPreferredColorScheme, ColorSchemeSelector, type Scheme } from "./theme-selector.ts";
+import { detectPreferredColorScheme, ColorSchemeSelector, type Scheme } from "./scheme-selector.ts";
 import { ModalDialog } from "./ModalDialog.ts";
 
 document.documentElement.dataset.theme = detectPreferredColorScheme();

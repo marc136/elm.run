@@ -378,10 +378,54 @@ header {
 }
 
 scheme-selector {
-    /* TODO style it as a three-state switch https://dev.to/jimajs/how-to-create-a-three-state-toggle-switch-using-html-css-and-javascript-2e68 */
     position: absolute;
     top: 1rem;
     right: 1rem;
+
+    form {
+        display: flex;
+        justify-content: center;
+        border: 2px solid var(--text);
+        border-radius: 1.3em;
+        overflow: hidden;
+    }
+
+    label, input {
+        cursor: pointer;
+    }
+
+    label {
+        position: relative;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+
+        &:has(input:checked) {
+            color: var(--background);
+        }
+
+        input {
+            appearance: none;
+            width: 1.6em;
+            height: 1.6em;
+            margin: 0;
+            padding: 0;
+
+            &:checked {
+                background: var(--text);
+                border: 1px solid var(--text);
+                border-radius: 50%;
+            }
+        }
+
+        svg {
+            /* positioned over radio button */
+            position: absolute;
+            width: 1.2em;
+            top: 0.2em;
+            left: 0.2em;
+        }
+    }
 }
 
 .CodeMirror {
