@@ -1,44 +1,74 @@
-# Ulm WASM REPL
+# REPL for https://elm.run/repl
 
-## Technical Behavior
+Page where the user may enter and evaluate Elm code.\
+The user may enter multiple lines, but only one Elm expression at a time.\
+On each keystroke, (inferred) types and the evaluated result are shown.
 
-ulm-repl.ts initializes the wasm compiler and downloads the core and json packages.
+It is also usable on mobile without extensive zooming involved.
 
-The `ReplInput` custom element renders codemirror and emits the `compiler` events `loading`, `ready`, `error: Error`.\
-Elm will maybe get a button to trigger compilation, in this case I will either create a port msg or set a property (attribute would need revoking).\
-But for now, the custom element will inform when Elm needs to store/show something.
+## What it is and why I built it (too long, won't read)
 
-## DONE
+### What it is
 
-* Clear input when evaluating to non-error
-* If the user reuses the same name, the old history entry is marked as outdated (declarations and type definitions)
+This REPL has an input field with syntax highlighting where the user may insert
+multiple lines, use the cursor keys to go up or down and change the input
+however she wants.\
+The input field grows or shrinks as needed.
 
+On every keystroke, the code is type-checked and evaluated. Type information is
+shown above the entered text, and the evaluated result is shown below.
+
+When pressing [Ctrl]+[Enter] or the "Run code" button, the full compiler result
+is added to the history above the input area.\
+Compiler problems are pretty-printed.
+
+From the history, the user may "edit" to copy the code into the input aread
+below and alter it as she sees fit.\
+She can also delete individual entries, or she can use the "Clean up" button to
+remove multiple entries:\
+For instance remove all compiler errors, or all evaluated expressions, or remove
+everthing except the valid declarations and definitions.
+
+On my phone, I don't need to scroll around on the page to enter or evaluate
+code. Horizontal overflow of the individual fixed-width formatted Elm compiler
+errors is scrollable.
+
+### Why I built it
+
+My main gripe with most programming REPLs is that they only allow to enter one
+line at a time. And that changing what I entered two lines above is usually a
+pain or often not directly possible.
+
+When I'm on my phone, I had no good way of writing Elm code.
+
+Alternatives that I know of always require a connection to a server to evaluate
+the code.
+
+## Changelog
+
+### Initial public release
+
+- Reuse code from https://elm-lang.org/try to render compiler problems
+- Add light/dark/auto mode for entire page
+- Allow user to manually remove items from log
+- Allow user to auto-clean all outdated entries from log
+- Clear input when evaluating to non-error
+- Add "edit" button as a shorthand to copy code from history to REPL input field
+- If the user reuses the same name, the old history entry is marked as outdated
+  (declarations and type definitions)
 
 ## TODO
 
-Next step: Styling
-1. Take from the try-editor only the styles that I need.
-2. Create one css file.
-3. Use same colors for errors and for codemirror
-4. Switching theme should change whole page, not just codemirror
-
 ### Further steps
-
-Add button to copy input from history into input field
-
-Style declarations that were overwritten differently in logs
 
 Fake elm-format
 
 Prepend missing type declarations
 
-Allow user to manually remove items from log
-
-Allow user to auto-clean all outdated entries from log
-
 Beginner/Zen mode: Hide type definitions?
 
-Render all entries as one Elm file
-    Allow download of that Elm file
+Render all entries as one Elm file\
+Allow download of that Elm file
 
-?Clear input after every evaluate and add [try again] button to copy from last failure
+Turn into a PWA (progressive web app) so it can be installed to computers/phones
+and used offline.
