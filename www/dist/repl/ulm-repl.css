@@ -452,10 +452,13 @@ menu {
 button {
     padding: 0.35em 1em;
     background: var(--background);
-    border: 2px solid var(--text);
-    border-radius: 4px;
     color: var(--text);
     cursor: pointer;
+}
+
+button, .repl-input-column {
+    border: 2px solid var(--text);
+    border-radius: 4px;
 }
 
 button:focus, button:hover, button:active {
