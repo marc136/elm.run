@@ -11,6 +11,7 @@ But for now, the custom element will inform when Elm needs to store/show somethi
 ## DONE
 
 * Clear input when evaluating to non-error
+* If the user reuses the same name, the old history entry is marked as outdated (declarations and type definitions)
 
 
 ## TODO

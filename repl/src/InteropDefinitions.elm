@@ -72,6 +72,7 @@ type EvaluatedInput
     | EvaluatedExpression { type_ : String, value : AnsiExtra.Parsed }
     | Problems (List Data.Problem.Problem)
     | Import
+    | TypeDefinition { name : String, outdated : Bool }
 
 
 type alias Input =
@@ -213,6 +214,11 @@ evaluatedResult =
           )
         , ( "new-import"
           , TsDecode.succeed Import
+          )
+        , ( "new-type"
+          , TsDecode.map
+                (\name -> TypeDefinition { name = name, outdated = False })
+                (TsDecode.field "name" TsDecode.string)
           )
         ]
 

@@ -138,8 +138,8 @@ type ReplWasm = {
 };
 
 type ReplResult =
-  | { type: "new-import"; data: string /* name */ }
-  | { type: "new-type"; data: string /** name */ }
+  | { type: "new-import"; name: string }
+  | { type: "new-type"; name: string }
   | { type: "new-decl"; name: string; value: Evaluated }
   | { type: "evaluated"; value: Evaluated }
   | { type: "do-nothing"; data: "undefined" }
@@ -193,6 +193,11 @@ async function repl(code: string, persistState: boolean): Promise<ReplResult> {
 
     case "new-import":
     case "new-type":
+      return {
+        type: result.type,
+        name: JSON.parse(result.name),
+      };
+
     case "do-nothing":
     case "no-ports":
       return result;

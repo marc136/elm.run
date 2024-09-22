@@ -109,8 +109,16 @@ read str = do
 outcomeToJson :: Outcome -> Json.Encode.Value
 outcomeToJson outcome =
   case outcome of
-    NewImport name  -> encode "new-import" (show name)
-    NewType name    -> encode "new-type" (show name)
+    NewImport name  ->
+      Json.Encode.object
+        [ "type"        ==> Json.Encode.chars "new-import"
+        , "name"        ==> Json.Encode.chars (show name)
+        ]
+    NewType name    ->
+      Json.Encode.object
+        [ "type"        ==> Json.Encode.chars "new-type"
+        , "name"        ==> Json.Encode.chars (show name)
+        ]
     NewDecl name code ->
       Json.Encode.object
         [ "type"        ==> Json.Encode.chars "new-decl"

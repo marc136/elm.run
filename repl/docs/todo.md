@@ -1,5 +1,3 @@
 TODO
 
-Show import in history
-
-Show type alias in history
+Syntax highlighting in history code (codemirror?)

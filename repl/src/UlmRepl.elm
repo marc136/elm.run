@@ -159,6 +159,9 @@ update msg model =
 
                             Io.Import ->
                                 True
+
+                            Io.TypeDefinition { outdated } ->
+                                not outdated
                     )
             , Cmd.none
             )
@@ -169,6 +172,9 @@ update msg model =
                     (\entry ->
                         case entry.result of
                             Io.EvaluatedDeclaration { outdated } ->
+                                not outdated
+
+                            Io.TypeDefinition { outdated } ->
                                 not outdated
 
                             _ ->
@@ -273,6 +279,22 @@ updateToElm msg model =
                                         Io.EvaluatedDeclaration old ->
                                             if old.name == new.name then
                                                 { entry | result = Io.EvaluatedDeclaration { old | outdated = True } }
+
+                                            else
+                                                entry
+
+                                        _ ->
+                                            entry
+                                )
+                                model.history
+
+                        Io.TypeDefinition new ->
+                            List.map
+                                (\entry ->
+                                    case entry.result of
+                                        Io.TypeDefinition old ->
+                                            if old.name == new.name then
+                                                { entry | result = Io.TypeDefinition { old | outdated = True } }
 
                                             else
                                                 entry
@@ -472,6 +494,16 @@ viewHistoryEntry { id, input, result } =
 
                 Io.Import ->
                     [ viewCode input ]
+
+                Io.TypeDefinition { name, outdated } ->
+                    [ Html.Extra.viewIf outdated
+                        (Html.div [ Html.Attributes.class "outdated" ]
+                            [ Html.span [ Html.Attributes.class "label" ] [ Html.text "outdated:" ]
+                            , Html.text <| " Replaced by another definition of `" ++ name ++ "`"
+                            ]
+                        )
+                    , viewCode input
+                    ]
     in
     ( String.fromFloat id
     , Html.li [] <|
