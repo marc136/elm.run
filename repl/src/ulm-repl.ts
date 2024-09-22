@@ -213,6 +213,21 @@ const examples = [
   ],
 ];
 
+async function evaluateExamples(elmApp: ElmApp) {
+  const exampleIndex = Math.floor(Math.random() * examples.length);
+  console.log("Will show examples", exampleIndex);
+  const chosen = examples[exampleIndex];
+  for (const input of chosen) {
+    const event = {
+      tag: "evaluated",
+      id: performance.now(),
+      input,
+      result: await repl(input, true),
+    };
+    elmApp.ports.interopToElm.send(event);
+  }
+}
+
 class ReplInput extends HTMLElement {
   static observedAttributes = ["file", "theme"];
   static elmApp: ElmApp | null = null;
@@ -273,6 +288,10 @@ class ReplInput extends HTMLElement {
           console.log("compiler ready");
           this.emit("compiler", "ready");
           this.check();
+
+          if (location.hash.includes("example") && ReplInput.elmApp) {
+            evaluateExamples(ReplInput.elmApp);
+          }
         })
         .catch((error) => {
           this.emit("compiler", { error });
@@ -304,29 +323,19 @@ class ReplInput extends HTMLElement {
   }
 
   private connectPorts() {
-    if (!ReplInput.elmApp) {
+    const elm = ReplInput.elmApp;
+    if (!elm) {
       throw new Error("No Elm App was attached to the editor");
     }
-    if (ReplInput.elmApp.ports.interopFromElm) {
-      ReplInput.elmApp.ports.interopFromElm.subscribe(async (msg) => {
+    if (elm.ports.interopFromElm) {
+      elm.ports.interopFromElm.subscribe(async (msg) => {
         console.info("port message `fromElm`", msg);
         switch (msg.tag) {
           case "compile":
             this.evaluate();
             break;
           case "enter-example-code":
-            const exampleIndex = Math.floor(Math.random() * examples.length);
-            console.log("Will show examples", exampleIndex);
-            const chosen = examples[exampleIndex];
-            for (const input of chosen) {
-              const event = {
-                tag: "evaluated",
-                id: performance.now(),
-                input,
-                result: await repl(input, true),
-              };
-              ReplInput.elmApp?.ports.interopToElm.send(event);
-            }
+            evaluateExamples(elm);
             break;
           case "replace-entered-code":
             this._editor?.setValue(msg.data);
