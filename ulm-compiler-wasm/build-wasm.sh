@@ -16,7 +16,7 @@ DIR=../www/generated
 cp "$(wasm32-wasi-cabal list-bin exe:ulm)" "$DIR/ulm.wasm"
 cp "$(wasm32-wasi-cabal list-bin exe:repl)" "$DIR/repl.wasm"
 cp "$DIR/ulm.wasm" ../www/dist/ # Copied there until I make esbuild load the wasm file
-cp "$DIR/repl.wasm" ../www/dist/ # Copied there until I make esbuild load the wasm file
+cp "$DIR/repl.wasm" ../www/dist/repl/ # Copied there until I make esbuild load the wasm file
 tar -czvf "$DIR/ulm.tar.gz" "$DIR/ulm.wasm"
 tar -czvf "$DIR/repl.tar.gz" "$DIR/repl.wasm"
 # Generate JS wrapper

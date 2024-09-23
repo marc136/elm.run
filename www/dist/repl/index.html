@@ -9,8 +9,8 @@
   <meta name="description"
     content="Try out Elm: A delightful language with friendly error messages, great performance, small assets, and no runtime exceptions.">
   <!-- <link rel="stylesheet" href="./css/pico.violet.min.css" /> -->
-  <link rel="stylesheet" href="./editor/codemirror.css" />
-  <link rel="stylesheet" href="./repl/ulm-repl.css" />
+  <link rel="stylesheet" href="/editor/codemirror.css" />
+  <link rel="stylesheet" href="/repl/ulm-repl.css" />
 </head>
 
 <body>
@@ -38,23 +38,12 @@
   </svg>
 
   <main id="main"><noscript>You need to allow JavaScript execution</noscript></main>
-  <script>
-    console.info('Enabling hot reload with esbuild');
-    new EventSource('/esbuild').addEventListener('change', () => location.reload());
-  </script>
-  <script src="./editor/codemirror.js"></script>
-  <!-- <script src="./editor/custom-elements.js"></script> -->
-  <script src="./repl/ulm-repl.js"></script>
+  <script src="/editor/codemirror.js"></script>
+  <!-- <script src="/editor/custom-elements.js"></script> -->
+  <script src="/repl/ulm-repl.js"></script>
   <script type="module">
-    import { init, writeFile, printFs } from './repl/ulm-repl.mjs'
-    // TODO import Elm?
-    const sourceFile = '/src/Example.elm'
-    writeFile(sourceFile, `isGreater5 : number -> Bool
-isGreater5 number =
-    number > 5
-`)
-    writeFile(sourceFile, 'abc = 123\n')
-    init(sourceFile)
+    import { init } from '/repl/ulm-repl.mjs'
+    init()
   </script>
 
 </body>
