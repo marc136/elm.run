@@ -14,9 +14,26 @@ And then you also need to build the Elm program with `npx elm-watch hot`
 
 ---
 
+## DEV
+
+```sh
+# keep building the compiler
+cd ../ulm-compiler-wasm
+./init.sh
+./dev.sh
+
+# build and serve js
+node dev.mjs
+
+# build editor
+npx elm-watch hot
+```
+
 ## TODO
 
 Use a web worker for compilation, see https://web.dev/articles/webassembly-performance-patterns-for-web-apps#good_task_runs_in_web_worker_and_loads_and_compiles_only_once
+
+After the first editor release, I want to get back to implementing the full `Ulm.Make.elm` (see commit 6afc00a) and compile multiple user-created Elm files.
 
 ---
 
