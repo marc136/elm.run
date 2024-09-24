@@ -1,21 +1,23 @@
-Forked from https://github.com/mdgriffith/elm-dev
+# Ulm Compiler Wasm
 
-Get the GHC compiler with wasm backend. I used
+This directory contains Haskell code to compile the Elm compiler to WebAssembly.\
+It is not the actual Ulm compiler, just shares the name. It contains no extra features on top of the Elm compiler.
 
-```sh
-nix shell https://gitlab.haskell.org/ghc/ghc-wasm-meta/-/archive/48ecacd922638487f65981c0018044b55dc7feb9/ghc-wasm-meta-master.tar.gz
-```
+## Development
 
-Then run `./build-wasm.sh` to build the Elm compiler as a wasm file.
+It requires the submodule `../elm-compiler-wasm` which is a fork of https://github.com/elm/compiler with the most minimal changes required to build for wams32-wasi.
+
+Get the [GHC compiler with wasm backend](https://gitlab.haskell.org/ghc/ghc-wasm-meta). I used nix for that, see the `./init.sh` file for the current revision.
+
+Then run `./build-wasm.sh` to build the `ulm.wasm` and `repl.wasm` used by other projects in this repository.
 
 # TODO
 
-Introduce a state monad to read the dependcy artifacts only once.
+Introduce a state monad to read the dependency artifacts only once.
 
 Use a web worker for compilation, see https://web.dev/articles/webassembly-performance-patterns-for-web-apps#good_task_runs_in_web_worker_and_loads_and_compiles_only_once
 
 Handle installation of new packages.
 
-Using `Reporting.Doc` to turn the errors into human-readable formatted JSON adds 2MiB to the wasm bundle size. I want to instead return a direct representation of the actual error, and then transform it in the viewer to the same or similar readable data.  
+Using `Reporting.Doc` to turn the errors into human-readable formatted JSON adds 2MiB to the wasm bundle size. I want to instead return a direct representation of the actual error, and then transform it in the viewer to the same or similar readable data.
 This will also allow to show the errors in [different languages](https://github.com/katjam/local-elm).
-

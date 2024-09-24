@@ -56,19 +56,15 @@ the code.
 - Add "edit" button as a shorthand to copy code from history to REPL input field
 - If the user reuses the same name, the old history entry is marked as outdated
   (declarations and type definitions)
+- Can insert 4 different examples with multiple evaluations for demo purposes
 
 ## TODO
 
 ### Further steps
 
-Fake elm-format
-
-Prepend missing type declarations
-
-Beginner/Zen mode: Hide type definitions?
-
-Render all entries as one Elm file\
-Allow download of that Elm file
-
-Turn into a PWA (progressive web app) so it can be installed to computers/phones
-and used offline.
+- Fake elm-format
+- Prepend missing type declarations
+- Beginner/Zen mode: Hide type definitions?
+- Render all entries as one Elm file
+- Allow download of that Elm file
+- Turn into a PWA (progressive web app) so it can be installed to computers/phones and used offline.
