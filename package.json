@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@swc/core": "^1.7.28"
+  }
+}

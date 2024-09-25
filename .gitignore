@@ -1,1 +1,9 @@
 .direnv
+node_modules
+
+# temporary hidden
+try-editor/
+try-editor2/
+www/dist/
+www/generated/
+cache-server/example/

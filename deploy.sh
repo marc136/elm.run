@@ -1,4 +1,4 @@
 #!/bin/sh
 
-npx elm-watch make --optimize
+make all
 rsync -azP --delete www/dist/ hetzner-nbg1:/www/elm.run/

@@ -4,6 +4,24 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>elm.run</title>
+        <link
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="/apple-touch-icon.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="32x32"
+            href="/favicon-32x32.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="16x16"
+            href="/favicon-16x16.png"
+        />
+        <link rel="manifest" href="/site.webmanifest" />
         <link rel="stylesheet" href="./repl/ulm-repl.css" />
         <style>
             body {
@@ -12,10 +30,19 @@
                 margin: 1em auto;
                 max-width: 40em;
             }
+
+            body > * {
+                margin: 0 0.5rem;
+            }
+
+            body > ul {
+                list-style-type: none;
+                padding: 0;
+            }
         </style>
     </head>
     <body>
-        <h1>How to run elm code in your browser?</h1>
+        <h1>How to run Elm code in your browser?</h1>
         <ul>
             <li>
                 <h2>REPL</h2>
@@ -71,6 +98,8 @@
                 <ul>
                     <li>
                         <a href="https://elm-notebook.org">elm-notebook.org</a>
+                        comes with user management and allows to store private
+                        and public notebooks.
                     </li>
                 </ul>
             </li>
