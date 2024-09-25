@@ -90,3 +90,12 @@ The initial main workflow for elm-editor was for teaching in a classroom: The te
 It uses the [Monaco editor](https://microsoft.github.io/monaco-editor/), which also powers [VS Code](https://github.com/microsoft/vscode).
 
 Can also run elm-format on the server to format the code.
+
+---
+
+miniBill's elm-interpreter UI
+
+Source code at https://github.com/miniBill/elm-interpreter
+
+Is hard to describe, but you can enter an arbitrary Elm expression and explore what happens in each step of the way.
+Gives buttons to view each sub-expression, shows the available state at that time and also the result.

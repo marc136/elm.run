@@ -2,3 +2,7 @@
 	path = elm-compiler-wasm
 	url = git@github.com:elm/compiler.git
 	branch = ulm-wasm
+[submodule "miniBill-elm-interpreter"]
+	path = miniBill-elm-interpreter
+	url = git@github.com:marc136/miniBill-elm-interpreter.git
+	branch = elm.run
