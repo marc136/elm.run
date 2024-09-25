@@ -1,6 +1,6 @@
 [submodule "elm-compiler-wasm"]
 	path = elm-compiler-wasm
-	url = git@github.com:elm/compiler.git
+	url = git@github.com:marc136/elm-compiler-wasm.git
 	branch = ulm-wasm
 [submodule "miniBill-elm-interpreter"]
 	path = miniBill-elm-interpreter
