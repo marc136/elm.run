@@ -75,6 +75,7 @@ mergeGlobalObjectsGraphs (Artifacts _ objects) acc =
 
 getHardcodedArtifacts :: IO ArtifactsForWasm
 getHardcodedArtifacts =
+  -- TODO replace with another function that initializes the deps and is re-evaluated when packages are installed/removed
   getArtifacts
     [ "elm/core/1.0.5",
       "elm/html/1.0.0",

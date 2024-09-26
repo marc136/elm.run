@@ -15,7 +15,7 @@ import qualified Data.Map.Utils as Map
 import qualified Data.Name as N
 import qualified Data.NonEmptyList as NE
 
-import System.IO.Unsafe  (unsafePerformIO)
+import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 
 import qualified AST.Source as Src
