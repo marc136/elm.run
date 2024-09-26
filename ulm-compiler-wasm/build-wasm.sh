@@ -29,10 +29,12 @@ du -h ../www/generated/*.{wasm,tar.gz}
 exit 0
 
 # "-Oz" -> optimize for file size
-wasm-opt -Oz "$DIR/ulm.wasm" -o "$DIR/ulm.opt.wasm"
-# For more optimiztion, look how wizer is used in
+# wasm-opt -Oz "$DIR/ulm.wasm" -o "$DIR/ulm.opt.wasm"
+wasm-opt -Oz "$DIR/repl.wasm" -o "$DIR/repl.opt.wasm"
+# For more optimization, look how wizer is used in
 # https://github.com/tweag/ormolu/blob/607978708809d97945c6036a60b8ffb9b719bc60/ormolu-live/cbits/init.c
-tar -czvf "$DIR/ulm.opt.tar.gz" "$DIR/ulm.opt.wasm"
+# tar -czvf "$DIR/ulm.opt.tar.gz" "$DIR/ulm.opt.wasm"
+tar -czvf "$DIR/repl.opt.tar.gz" "$DIR/repl.opt.wasm"
 
 tree -h "$DIR"
 
