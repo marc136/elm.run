@@ -43,8 +43,7 @@ wipJs jsString =
   let str = Wasm.fromJSString jsString
       source = BSU.fromString $ trace "parsing" $ traceShowId str
    in do
-        -- fmap encodeJson Ulm.Details.wipJson
-        fmap encodeJson $ Ulm.Repl.read str
+        fmap encodeJson Ulm.Details.wipJson
 
 foreign export javascript "buildArtifacts" buildArtifacts :: IO ()
 

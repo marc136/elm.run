@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Ulm.Repl ( checkRepl, evaluateRepl, read, removeFromState, toOutcome, outcomeToJsonString, initialState, ReplState )
+module Ulm.Repl ( checkRepl, evaluateRepl, removeFromState, toOutcome, outcomeToJsonString, initialState, ReplState )
  where
 
 import Prelude hiding (read)
@@ -90,21 +90,6 @@ sharedCheckEvaluate str = do
   artifacts <- Ulm.ReadArtifacts.getHardcodedArtifacts -- TODO disable the hardcoded artifacts again
   pure $ toOutcome artifacts state str
 
-read :: String -> IO Json.Encode.Value
-read str = do
-  putStrLn $ "Evaluate `" ++ str ++ "`"
-  state <- readIORef globalReplState
-  print state
-  -- artifacts <- readIORef globalArtifacts
-  artifacts <- Ulm.ReadArtifacts.getHardcodedArtifacts -- TODO disable the hardcoded artifacts again
-  let (nextState, outcome) = toOutcome artifacts state str
-  print outcome
-  print nextState
-  -- writeIORef globalReplState (state + 1)
-  writeIORef globalReplState nextState
-  -- wip "Repl.read"
-  putStrLn ("Changed global ReplState" ++ show nextState)
-  pure $ outcomeToJson outcome
 
 outcomeToJson :: Outcome -> Json.Encode.Value
 outcomeToJson outcome =

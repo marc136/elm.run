@@ -23,7 +23,7 @@ wipJs jsString =
   let str = Wasm.fromJSString jsString
       source = Data.ByteString.UTF8.fromString $ trace "parsing" $ traceShowId str
    in do
-        fmap encodeJson $ Ulm.Repl.read str
+        fmap encodeJson $ Ulm.Repl.checkRepl str
 
 foreign export javascript "removeFromState"
   removeFromState :: Wasm.JSString -> IO ()
