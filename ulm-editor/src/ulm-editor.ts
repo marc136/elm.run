@@ -116,6 +116,13 @@ async function loadPackageRegistry() {
   writeFileInDir(pkgDir, "registry.dat", await allpackages.arrayBuffer());
 }
 
+async function wip() {
+  console.warn("🚧 ulm.wip");
+
+  printFs();
+  console.warn("🚧 ulm.wip", result);
+}
+
 async function compile(file: string) {
   if (!ulm) {
     console.error("Cannot compile, the WASM compiler was not loaded");
@@ -127,7 +134,6 @@ async function compile(file: string) {
   }
   file = file.trim();
 
-  printFs();
   const start = performance.now();
   console.info("Starting compilation of", file);
   // const result = await ulm.make(file)
@@ -262,6 +268,8 @@ class UlmEditor extends HTMLElement {
           this._editor?.setValue(msg.data);
           this.compile();
           break;
+        case "wip-js":
+          return wip();
         default:
           console.warn("Unknown port message `fromElm`", msg);
       }

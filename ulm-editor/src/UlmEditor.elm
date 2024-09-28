@@ -105,6 +105,7 @@ type Msg
     | PreferForOutput OutputPreference
     | SwitchProgram
     | SelectedTheme Theme
+    | PressedWipButton
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -201,6 +202,9 @@ update msg global =
             ( Editor { model | theme = theme }
             , Cmd.none
             )
+
+        ( PressedWipButton, model ) ->
+            ( model, InteropDefinitions.WipJs |> InteropPorts.fromElm )
 
 
 revokeObjectUrl : Maybe ObjectUrl -> Cmd msg
@@ -316,6 +320,8 @@ viewOutput model =
           else
             Html.button [ Html.Events.onClick <| SelectedTheme Theme.Dark ]
                 [ Html.text <| Theme.toString Theme.Dark ]
+        , Html.button [ Html.Events.onClick <| PressedWipButton ]
+            [ Html.text "wip" ]
         ]
     , Html.Keyed.node "article" [] <| viewCompiled model
     ]

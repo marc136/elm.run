@@ -29,6 +29,7 @@ type FromElm
     = TriggerCompile String
     | RevokeObjectUrl String
     | ReplaceCodeWith String
+    | WipJs
 
 
 type ToElm
@@ -50,7 +51,7 @@ type alias Flags =
 fromElm : Encoder FromElm
 fromElm =
     TsEncode.union
-        (\vTriggerCompile vRevokeUrl vReplaceCodeWith value ->
+        (\vTriggerCompile vRevokeUrl vReplaceCodeWith vWipJs value ->
             case value of
                 TriggerCompile filepath ->
                     vTriggerCompile filepath
@@ -60,12 +61,16 @@ fromElm =
 
                 ReplaceCodeWith source ->
                     vReplaceCodeWith source
+
+                WipJs ->
+                    vWipJs ()
         )
         |> TsEncode.variantTagged "compile" TsEncode.string
         |> TsEncode.variantTagged "revoke-object-url" TsEncode.string
         -- |> TsEncode.variantTagged "revoke-object-url"
         --     (TsEncode.object [ required "url" identity TsEncode.string ])
         |> TsEncode.variantTagged "replace-code" TsEncode.string
+        |> TsEncode.variantTagged "wip-js" TsEncode.null
         |> TsEncode.buildUnion
 
 
