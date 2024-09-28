@@ -17,6 +17,10 @@ Introduce a state monad to read the dependency artifacts only once.
 
 Use a web worker for compilation, see https://web.dev/articles/webassembly-performance-patterns-for-web-apps#good_task_runs_in_web_worker_and_loads_and_compiles_only_once
 
+Add a replacement for elm-compiler/builder/src/Stuff.hs `withRegistryLock`.
+The missing lock might be the reason why installing many dependencies at once can fail.
+See my experiments inside Ulm.Details with `acquireLock`.
+
 Handle installation of new packages.
 
 Using `Reporting.Doc` to turn the errors into human-readable formatted JSON adds 2MiB to the wasm bundle size. I want to instead return a direct representation of the actual error, and then transform it in the viewer to the same or similar readable data.

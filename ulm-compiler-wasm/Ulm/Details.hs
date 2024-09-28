@@ -340,14 +340,14 @@ verifyDependencies env@(Env key scope root cache _ _ _) outline solution directD
   do  --Reporting.report key (Reporting.DStart (Map.size solution))
       putStrLn $ "verifyDependencies, will now traverse solution " ++ (show (Map.size solution))
 
-      -- TODO don't globally lock, use the file path
+      -- TODO don't globally lock, use the file path, see builder/src/Stuff.hs withRegistryLock
       -- See the example of a skip channel on https://hackage.haskell.org/package/base-4.20.0.1/docs/Control-Concurrent-MVar.html
       -- Explanation of MVar
       -- https://book.realworldhaskell.org/read/concurrent-and-multicore-programming.html
       -- More powerful than MVar
       -- https://book.realworldhaskell.org/read/software-transactional-memory.html
       -- registryLock <- newEmptyMVar
-      -- acquireLock "first" registryLock
+      -- traceShow "acquiredLock \"first\"" $ acquireLock "first" registryLock
       -- putStrLn $ "registryLock should be non-empty " ++ show registryLock
 
       -- creates mvar
