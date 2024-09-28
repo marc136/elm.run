@@ -27,9 +27,13 @@ instance Show ArtifactsForWasm where
   show (ArtifactsForWasm _ifaces _objects) =
     "Artifacts with inferfaces: " ++ show (fmap ModuleName.toChars $ Map.keys _ifaces)
 
-getArtifactsForWasm :: IO ArtifactsForWasm
-getArtifactsForWasm =
-  getHardcodedArtifacts
+empty :: ArtifactsForWasm
+empty =
+  ArtifactsForWasm Map.empty Opt.empty
+
+isEmpty :: ArtifactsForWasm -> Bool
+isEmpty (ArtifactsForWasm _ifaces _objects) =
+  Map.null _ifaces
 
 -- copied from builder/src/Elm/Details
 data Artifacts
@@ -72,17 +76,6 @@ toCompileInterface dep =
 mergeGlobalObjectsGraphs :: Artifacts -> Opt.GlobalGraph -> Opt.GlobalGraph
 mergeGlobalObjectsGraphs (Artifacts _ objects) acc =
   Opt.addGlobalGraph acc objects
-
-getHardcodedArtifacts :: IO ArtifactsForWasm
-getHardcodedArtifacts =
-  -- TODO replace with another function that initializes the deps and is re-evaluated when packages are installed/removed
-  getArtifacts
-    [ "elm/core/1.0.5",
-      "elm/html/1.0.0",
-      "elm/browser/1.0.2",
-      "elm/json/1.1.3",
-      "elm/virtual-dom/1.0.3"
-    ]
 
 getArtifacts :: [String] -> IO ArtifactsForWasm
 getArtifacts packages = do

@@ -57,10 +57,9 @@ globalReplState :: IORef ReplState
 {-# NOINLINE globalReplState #-}
 globalReplState = unsafePerformIO (newIORef initialState)
 
--- globalArtifacts :: IORef Artifacts
--- {-# NOINLINE globalArtifacts #-}
--- -- TODO read artifacts.dat files
--- globalArtifacts = unsafePerformIO (newIORef initialState)
+globalArtifacts :: IORef Ulm.ReadArtifacts.ArtifactsForWasm
+{-# NOINLINE globalArtifacts #-}
+globalArtifacts = unsafePerformIO (newIORef Ulm.ReadArtifacts.empty)
 
 removeFromState :: String -> IO ()
 removeFromState string = do
@@ -86,10 +85,19 @@ sharedCheckEvaluate str = do
   putStrLn $ "Evaluate `" ++ str ++ "`"
   state <- readIORef globalReplState
   print state
-  -- artifacts <- readIORef globalArtifacts
-  artifacts <- Ulm.ReadArtifacts.getHardcodedArtifacts -- TODO disable the hardcoded artifacts again
+  artifacts <- readArtifacts
   pure $ toOutcome artifacts state str
 
+readArtifacts :: IO Ulm.ReadArtifacts.ArtifactsForWasm
+readArtifacts = do
+  artifacts <- readIORef globalArtifacts
+  if Ulm.ReadArtifacts.isEmpty artifacts then
+    Ulm.ReadArtifacts.getArtifacts
+      [ "elm/core/1.0.5"
+      , "elm/json/1.1.3"
+      ]
+  else 
+    pure artifacts
 
 outcomeToJson :: Outcome -> Json.Encode.Value
 outcomeToJson outcome =
@@ -209,7 +217,6 @@ compile (Ulm.ReadArtifacts.ArtifactsForWasm interfaces objects) state@(ReplState
         modul <- mapLeft Error.BadSyntax $ PM.fromByteString PM.Application source
         ifaces <- mapLeft Error.BadImports $ checkImports interfaces (Src._imports modul)
         artifacts <- Compile.compile Pkg.dummyName ifaces modul
-        -- TODO store in globalReplState
         return ( modul, artifacts, objects )
   of
     Left err ->

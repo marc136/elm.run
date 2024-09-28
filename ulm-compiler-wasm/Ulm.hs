@@ -118,52 +118,6 @@ compileThis source =
                               putStrLn "Success, generated JS code"
                               pure $ Success name filepath
 
-compileWasmPrebuiltDeps :: Wasm.JSString -> IO Wasm.JSString
-compileWasmPrebuiltDeps jsString =
-  let str = Wasm.fromJSString jsString
-      source = BSU.fromString $ trace "parsing" $ traceShowId str
-   in do
-        trace "wrote sample file" $ Data.ByteString.Builder.writeFile "/wasm-can-write" (Data.ByteString.Builder.stringUtf8 "horst")
-        trace "wrote sample file" $ Data.ByteString.Builder.writeFile "/packages/wasm-can-write" (Data.ByteString.Builder.stringUtf8 "horst")
-        outcome <- compileWithPrebuiltDependencies source
-        pure $ encodeJson $ outcomeToJson source outcome
-
--- This might be useful for a repl. It cannot compile dependencies, but the file size is smaller.
--- For a repl that might be more important
-compileWithPrebuiltDependencies :: BSU.ByteString -> IO Outcome
-compileWithPrebuiltDependencies source =
-  case parse source of
-    Left err ->
-      pure $ BadInput Data.Name._Main (Reporting.Error.BadSyntax err)
-    Right modul@(Src.Module _ _ _ imports _ _ _ _ _) ->
-      let importNames = fmap Src.getImportName imports
-       in do
-            artifacts <- ReadArtifacts.getArtifactsForWasm
-            -- traceShow "show importNames" $ traceShow importNames $
-            case Compile.compile Pkg.dummyName (ReadArtifacts.interfaces artifacts) modul of
-              Left err ->
-                pure $ BadInput (Src.getName modul) err
-              Right (Compile.Artifacts canModule _ locals) ->
-                trace "Compile did not fail" $ case locals of
-                  Opt.LocalGraph Nothing _ _ ->
-                    pure NoMain
-                  Opt.LocalGraph (Just main_) _ _ ->
-                    let mode = Mode.Dev Nothing
-                        home = Can._name canModule
-                        name = ModuleName._module home
-                        mains = Map.singleton home main_
-                        graph = Opt.addLocalGraph locals (ReadArtifacts.objects artifacts)
-                        js :: Data.ByteString.Builder.Builder
-                        js = trace "generated js" $ JS.generate mode graph mains
-                        _ = traceShowId js
-                        filename = "generated.js"
-                        filepath = "/tmp/" ++ filename
-                     in do
-                          trace "Success3, generated JS code" $ Data.ByteString.Builder.writeFile "/absolute.js" js
-                          trace "Success2, generated JS code" $ Data.ByteString.Builder.writeFile "./relative.js" js
-                          trace "Success, generated JS code" $ Data.ByteString.Builder.writeFile filepath js
-                          pure $ Success name filepath
-
 parse :: BSU.ByteString -> Either Syntax.Error Src.Module
 parse bs =
   Parse.fromByteString Parse.Application bs
