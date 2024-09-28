@@ -214,6 +214,9 @@ class UlmEditor extends HTMLElement {
       tabSize: 2,
       indentWithTabs: false,
       extraKeys: {
+        Esc: (cm) => {
+          console.warn("TODO escape focus trap");
+        },
         Tab: (cm) => {
           cm.execCommand("indentMore");
         },
