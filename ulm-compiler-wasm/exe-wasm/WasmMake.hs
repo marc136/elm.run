@@ -6,8 +6,9 @@ import Data.ByteString.Lazy.UTF8 qualified -- from utf8-string
 import Data.ByteString.UTF8 qualified as BSU -- from utf8-string
 import Data.Map qualified as Map
 import Debug.Trace
-import GHC.Wasm.Prim qualified as Wasm -- See https://gitlab.haskell.org/ghc/ghc/-/commit/317a915bc46fee2c824d595b0d618057bf7fbbf1#82b5a034883a3ede9540d6423738da627660f860
 import Elm.Package qualified
+-- See https://gitlab.haskell.org/ghc/ghc/-/commit/317a915bc46fee2c824d595b0d618057bf7fbbf1#82b5a034883a3ede9540d6423738da627660f860
+import GHC.Wasm.Prim qualified as Wasm
 import Json.Encode qualified
 import Ulm.Details qualified
 import Ulm.Install qualified
