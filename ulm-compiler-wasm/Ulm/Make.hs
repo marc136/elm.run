@@ -1,8 +1,8 @@
 module Ulm.Make
-  ( Outcome
-  , compileThis
-  , outcomeToJson
-  , makeFile
+  ( Outcome,
+    compileThis,
+    outcomeToJson,
+    makeFile,
   )
 where
 
@@ -15,8 +15,11 @@ import Data.ByteString.Lazy qualified
 import Data.ByteString.Lazy.UTF8 qualified -- from utf8-string
 import Data.ByteString.UTF8 qualified as BSU -- from utf8-string
 import Data.Map qualified as Map
+import Data.Map.Utils qualified as Map
 import Data.Name qualified
+import Data.NonEmptyList qualified as NE
 import Debug.Trace
+import Elm.Interface qualified as I
 import Elm.ModuleName qualified as ModuleName
 import Elm.Outline qualified
 import Elm.Package qualified as Pkg
@@ -26,16 +29,17 @@ import Generate.Mode qualified as Mode
 import Json.Encode ((==>))
 import Json.Encode qualified
 import Parse.Module qualified as Parse
+import Reporting.Annotation qualified
 import Reporting.Error qualified
+import Reporting.Error.Import qualified
 import Reporting.Error.Syntax qualified as Syntax
 import Reporting.Exit.Help qualified
 import ToStringHelper
 import Ulm.Details qualified
 import Ulm.ReadArtifacts qualified as ReadArtifacts
+import Ulm.Repl qualified
 import Ulm.Reporting qualified
 import Ulm.Reporting.Exit qualified as Exit
-import Ulm.Repl qualified
-
 
 data Outcome
   = Success ModuleName.Raw String
@@ -56,42 +60,60 @@ compileThis source =
   case parse source of
     Left err ->
       pure $ BadInput Data.Name._Main (Reporting.Error.BadSyntax err)
-    Right modul@(Src.Module _ _ _ imports _ _ _ _ _) ->
-      let importNames = fmap Src.getImportName imports
-       in do
-            loaded <- Ulm.Details.loadArtifactsForApp "/"
-            -- loaded <- Ulm.Details.load "/"
-            case loaded of
-              Left err ->
-                do
-                  putStrLn ("loadArtifacts error" ++ show err)
-                  pure BuildingDependenciesFailed
-              Right artifacts ->
-                case Compile.compile Pkg.dummyName (ReadArtifacts.interfaces artifacts) modul of
-                  Left err ->
-                    pure $ BadInput (Src.getName modul) err
-                  Right (Compile.Artifacts canModule _ locals) ->
-                    trace "Compile did not fail" $ case locals of
-                      Opt.LocalGraph Nothing _ _ ->
-                        pure NoMain
-                      Opt.LocalGraph (Just main_) _ _ ->
-                        let mode = Mode.Dev Nothing
-                            home = Can._name canModule
-                            name = ModuleName._module home
-                            mains = Map.singleton home main_
-                            graph = Opt.addLocalGraph locals (ReadArtifacts.objects artifacts)
-                            js :: Data.ByteString.Builder.Builder
-                            js = JS.generate mode graph mains
-                            filename = "generated.js"
-                            filepath = "/tmp/" ++ filename
-                         in do
-                              Data.ByteString.Builder.writeFile filepath js
-                              putStrLn "Success, generated JS code"
-                              pure $ Success name filepath
+    Right modul@(Src.Module _ _ _ imports _ _ _ _ _) -> do
+      loaded <- Ulm.Details.loadArtifactsForApp "/"
+      case loaded of
+        Left err ->
+          do
+            putStrLn ("loadArtifacts error" ++ show err)
+            pure BuildingDependenciesFailed
+        Right artifacts ->
+          case checkImports (ReadArtifacts.interfaces artifacts) imports of
+            Left err ->
+              pure $ BadInput (Src.getName modul) (Reporting.Error.BadImports err)
+            Right ifaces ->
+              let importNames = fmap Src.getImportName imports
+               in do
+                    case Compile.compile Pkg.dummyName (ReadArtifacts.interfaces artifacts) modul of
+                      Left err ->
+                        pure $ BadInput (Src.getName modul) err
+                      Right (Compile.Artifacts canModule _ locals) ->
+                        trace "Compile did not fail" $ case locals of
+                          Opt.LocalGraph Nothing _ _ ->
+                            pure NoMain
+                          Opt.LocalGraph (Just main_) _ _ ->
+                            let mode = Mode.Dev Nothing
+                                home = Can._name canModule
+                                name = ModuleName._module home
+                                mains = Map.singleton home main_
+                                graph = Opt.addLocalGraph locals (ReadArtifacts.objects artifacts)
+                                js :: Data.ByteString.Builder.Builder
+                                js = JS.generate mode graph mains
+                                filename = "generated.js"
+                                filepath = "/tmp/" ++ filename
+                             in do
+                                  Data.ByteString.Builder.writeFile filepath js
+                                  putStrLn "Success, generated JS code"
+                                  pure $ Success name filepath
 
 parse :: BSU.ByteString -> Either Syntax.Error Src.Module
 parse bs =
   Parse.fromByteString Parse.Application bs
+
+checkImports :: Map.Map ModuleName.Raw I.Interface -> [Src.Import] -> Either (NE.List Reporting.Error.Import.Error) (Map.Map ModuleName.Raw I.Interface)
+checkImports interfaces imports =
+  let importDict = Map.fromValues Src.getImportName imports
+      missing = Map.difference importDict interfaces
+   in case Map.elems missing of
+        [] ->
+          Right (Map.intersection interfaces importDict)
+        i : is ->
+          let unimported =
+                Map.keysSet (Map.difference interfaces importDict)
+
+              toError (Src.Import (Reporting.Annotation.At region name) _ _) =
+                Reporting.Error.Import.Error region name unimported Reporting.Error.Import.NotFound
+           in Left (fmap toError (NE.List i is))
 
 outcomeToJson :: BSU.ByteString -> Outcome -> Json.Encode.Value
 outcomeToJson source outcome =
