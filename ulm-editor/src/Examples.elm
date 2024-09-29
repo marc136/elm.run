@@ -23,7 +23,7 @@ list =
     [ ( "Hello World!", HelloWorld )
     , ( "Buttons", Buttons )
     , ( "Clock", Clock )
-    , ( "Http", Http )
+    -- , ( "Http", Http )
     , ( "Cards", Cards )
     ]
 
