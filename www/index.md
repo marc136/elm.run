@@ -94,8 +94,10 @@ Can also run elm-format on the server to format the code.
 ---
 
 miniBill's elm-interpreter UI
+https://elm.run/minibill-elm-interpreter
 
 Source code at https://github.com/miniBill/elm-interpreter
+https://github.com/miniBill/elm-interpreter/blob/main/src/UI.elm
 
 Is hard to describe, but you can enter an arbitrary Elm expression and explore what happens in each step of the way.
 Gives buttons to view each sub-expression, shows the available state at that time and also the result.
