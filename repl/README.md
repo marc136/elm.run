@@ -44,6 +44,18 @@ When I'm on my phone, I had no good way of writing Elm code.
 Alternatives that I know of always require a connection to a server to evaluate
 the code.
 
+## DEV
+
+```sh
+# keep building the compiler
+cd ../ulm-compiler-wasm
+./init.sh
+./dev.sh
+
+# And start the esbuild server and elm-watch
+npm run dev
+```
+
 ## Changelog
 
 ### Initial public release

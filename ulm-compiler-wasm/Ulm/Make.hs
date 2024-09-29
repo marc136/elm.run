@@ -1,128 +1,121 @@
 module Ulm.Make
-  (make)
+  ( Outcome
+  , compileThis
+  , outcomeToJson
+  , makeFile
+  )
 where
 
--- Copied from elm-compiler-wasm/terminal/src/Make.hs
+import AST.Canonical qualified as Can
+import AST.Optimized as Opt
+import AST.Source qualified as Src
+import Compile qualified
+import Data.ByteString.Builder qualified
+import Data.ByteString.Lazy qualified
+import Data.ByteString.Lazy.UTF8 qualified -- from utf8-string
+import Data.ByteString.UTF8 qualified as BSU -- from utf8-string
+import Data.Map qualified as Map
+import Data.Name qualified
+import Debug.Trace
+import Elm.ModuleName qualified as ModuleName
+import Elm.Outline qualified
+import Elm.Package qualified as Pkg
+import File qualified
+import Generate.JavaScript qualified as JS
+import Generate.Mode qualified as Mode
+import Json.Encode ((==>))
+import Json.Encode qualified
+import Parse.Module qualified as Parse
+import Reporting.Error qualified
+import Reporting.Error.Syntax qualified as Syntax
+import Reporting.Exit.Help qualified
+import ToStringHelper
+import Ulm.Details qualified
+import Ulm.ReadArtifacts qualified as ReadArtifacts
+import Ulm.Reporting qualified
+import Ulm.Reporting.Exit qualified as Exit
+import Ulm.Repl qualified
 
 
-import qualified Data.ByteString.Builder as B
-import qualified Data.Maybe as Maybe
-import qualified Data.NonEmptyList as NE
-import qualified System.Directory as Dir
-import qualified System.FilePath as FP
+data Outcome
+  = Success ModuleName.Raw String
+  | NoMain
+  | BadInput ModuleName.Raw Reporting.Error.Error
+  | BuildingDependenciesFailed
+  deriving (Show)
 
-import qualified AST.Optimized as Opt
--- import qualified BackgroundWriter as BW
-import qualified Ulm.Build as Build
-import qualified Ulm.Details as Details
-import qualified Elm.ModuleName as ModuleName
-import qualified File
-import qualified Ulm.Generate as Generate
--- import qualified Generate.Html as Html
--- import qualified Reporting
-import Ulm.Reporting.Exit as Exit
-import qualified Reporting.Task as Task
+makeFile :: String -> IO Outcome
+makeFile filepath = do
+  source <- File.readUtf8 filepath
+  compileThis source
 
+compileThis :: BSU.ByteString -> IO Outcome
+compileThis source =
+  -- The main compilation logic is the same as
+  -- `../worker/src/Endpoint/Compile.hs`
+  case parse source of
+    Left err ->
+      pure $ BadInput Data.Name._Main (Reporting.Error.BadSyntax err)
+    Right modul@(Src.Module _ _ _ imports _ _ _ _ _) ->
+      let importNames = fmap Src.getImportName imports
+       in do
+            loaded <- Ulm.Details.loadArtifactsForApp "/"
+            -- loaded <- Ulm.Details.load "/"
+            case loaded of
+              Left err ->
+                do
+                  putStrLn ("loadArtifacts error" ++ show err)
+                  pure BuildingDependenciesFailed
+              Right artifacts ->
+                case Compile.compile Pkg.dummyName (ReadArtifacts.interfaces artifacts) modul of
+                  Left err ->
+                    pure $ BadInput (Src.getName modul) err
+                  Right (Compile.Artifacts canModule _ locals) ->
+                    trace "Compile did not fail" $ case locals of
+                      Opt.LocalGraph Nothing _ _ ->
+                        pure NoMain
+                      Opt.LocalGraph (Just main_) _ _ ->
+                        let mode = Mode.Dev Nothing
+                            home = Can._name canModule
+                            name = ModuleName._module home
+                            mains = Map.singleton home main_
+                            graph = Opt.addLocalGraph locals (ReadArtifacts.objects artifacts)
+                            js :: Data.ByteString.Builder.Builder
+                            js = JS.generate mode graph mains
+                            filename = "generated.js"
+                            filepath = "/tmp/" ++ filename
+                         in do
+                              Data.ByteString.Builder.writeFile filepath js
+                              putStrLn "Success, generated JS code"
+                              pure $ Success name filepath
 
+parse :: BSU.ByteString -> Either Syntax.Error Src.Module
+parse bs =
+  Parse.fromByteString Parse.Application bs
 
--- RUN
+outcomeToJson :: BSU.ByteString -> Outcome -> Json.Encode.Value
+outcomeToJson source outcome =
+  case outcome of
+    Success name file ->
+      Json.Encode.object
+        [ "type" ==> Json.Encode.chars "success",
+          "file" ==> Json.Encode.chars file,
+          "name" ==> Json.Encode.chars (ModuleName.toChars name)
+        ]
+    NoMain ->
+      reportToJson $ Ulm.Reporting.noMain
+    BadInput name err ->
+      reportToJson $
+        Reporting.Exit.Help.compilerReport
+          "/"
+          (Reporting.Error.Module name "/try" File.zeroTime source err)
+          []
+    BuildingDependenciesFailed ->
+      Json.Encode.object
+        [ "type" ==> Json.Encode.chars "dependency-error",
+          "message" ==> Json.Encode.chars "Could not build all dependencies"
+        ]
 
-
-type Task a = Task.Task Exit.Make a
-
-make :: FilePath -> IO (Either Exit.Make FilePath)
-make file =
-  let target = "elm.js" in
-  -- `runHelp` from elm-compiler-wasm/terminal/src/Make.hs
-  Task.run $
-  do 
-    let root = "/"
-    let desiredMode = Dev
-    details <- Task.eio Exit.MakeBadDetails (Details.load root)
-    -- Note: `runHelp` in elm-compiler-wasm/terminal/src/Make.hs also contains code to compile multiple files into one
-    -- exposed <- getExposed details
-    -- buildExposed root details maybeDocs exposed
-    artifacts <- buildPaths root details (NE.List file [])
-    case getNoMains artifacts of
-      [] ->
-        do  builder <- toBuilder root details desiredMode artifacts
-            generate target builder (Build.getRootNames artifacts)
-
-      name:names ->
-        Task.throw (Exit.MakeNonMainFilesIntoJavaScript name names)
-
-
-
--- BUILD PROJECTS
-
-
-buildPaths :: FilePath -> Details.Details -> NE.List FilePath -> Task Build.Artifacts
-buildPaths root details paths =
-  Task.eio Exit.MakeCannotBuild $
-    Build.fromPaths root details paths
-
-
-
--- GET MAINS
-
-
-isMain :: ModuleName.Raw -> Build.Module -> Bool
-isMain targetName modul =
-  case modul of
-    Build.Fresh name _ (Opt.LocalGraph maybeMain _ _) ->
-      Maybe.isJust maybeMain && name == targetName
-
-    Build.Cached name mainIsDefined _ ->
-      mainIsDefined && name == targetName
-
-
-
--- GET MAINLESS
-
-
-getNoMains :: Build.Artifacts -> [ModuleName.Raw]
-getNoMains (Build.Artifacts _ _ roots modules) =
-  Maybe.mapMaybe (getNoMain modules) (NE.toList roots)
-
-
-getNoMain :: [Build.Module] -> Build.Root -> Maybe ModuleName.Raw
-getNoMain modules root =
-  case root of
-    Build.Inside name ->
-      if any (isMain name) modules
-      then Nothing
-      else Just name
-
-    Build.Outside name _ (Opt.LocalGraph maybeMain _ _) ->
-      case maybeMain of
-        Just _  -> Nothing
-        Nothing -> Just name
-
-
-
--- GENERATE
-
-
-generate :: FilePath -> B.Builder -> NE.List ModuleName.Raw -> Task FilePath
-generate target builder names =
-  Task.io $
-    do  Dir.createDirectoryIfMissing True (FP.takeDirectory target)
-        File.writeBuilder target builder
-        -- Reporting.reportGenerate style names target
-        pure target
-
-
-
--- TO BUILDER
-
-
-data DesiredMode = Debug | Dev | Prod
-
-
-toBuilder :: FilePath -> Details.Details -> DesiredMode -> Build.Artifacts -> Task B.Builder
-toBuilder root details desiredMode artifacts =
-  Task.mapError Exit.MakeBadGenerate $
-    case desiredMode of
-      Debug -> Generate.debug root details artifacts
-      Dev   -> Generate.dev   root details artifacts
-      Prod  -> Generate.prod  root details artifacts
+reportToJson :: Reporting.Exit.Help.Report -> Json.Encode.Value
+reportToJson =
+  Reporting.Exit.Help.reportToJson

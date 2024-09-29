@@ -124,12 +124,12 @@ async function compile(file: string) {
   file = file.trim();
 
   printFs();
-  const start = Date.now();
+  const start = performance.now();
   console.info("Starting compilation of", file);
   // const result = await ulm.make(file)
   const result = await ulm.compile(await readFileToString(file));
   console.info(
-    `Finished compilation after ${((Date.now() - start) / 1000).toFixed(3)}s`,
+    `Finished compilation after ${((performance.now() - start) / 1000).toFixed(3)}s`,
     result,
   );
   return result;
@@ -270,7 +270,7 @@ class UlmEditor extends HTMLElement {
       return;
     }
     if (!this._file || !this._editor) {
-      console.warn("Skipping comilation because file or editor are not set");
+      console.warn("Skipping compilation because file or editor are not set");
       return;
     }
     this._isCompiling = true;

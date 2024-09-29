@@ -22,11 +22,8 @@ cd ../ulm-compiler-wasm
 ./init.sh
 ./dev.sh
 
-# build and serve js
-node dev.mjs
-
-# build editor
-npx elm-watch hot
+# And start the esbuild server and elm-watch
+npm run dev
 ```
 
 ## TODO
