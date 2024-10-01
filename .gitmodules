@@ -6,3 +6,11 @@
 	path = miniBill-elm-interpreter
 	url = git@github.com:marc136/miniBill-elm-interpreter.git
 	branch = elm.run
+[submodule "compiler/guida"]
+	path = compiler/guida
+	url = git@github.com:guida-lang/compiler.git
+	branch = master
+[submodule "compiler/pithub"]
+	path = compiler/pithub
+	url = git@github.com:pithub/elm-compiler-in-elm-ui.git
+	branch = main
