@@ -1,6 +1,8 @@
 import { ConsoleStdout, File, OpenFile, WASI } from "@bjorn3/browser_wasi_shim";
 import type { Fd } from "@bjorn3/browser_wasi_shim";
 
+// TODO extract this into the elm-compiler-wasm repo
+
 import ulmJs from "../../www/generated/repl";
 
 export interface ReplCompiler {
