@@ -9,8 +9,7 @@ If I make enough progress for a sane public release, I will also clean it up pro
 **The relevant directories are:**
 
 1. `./repl/` contains code for https://elm.run/repl
-2. `./elm-compiler-wasm/` is the official elm compiler (git submodule)
-3. `./ulm-compiler-wasm/` contains my own code to build the Elm compiler as a WASM module. It directly uses the Elm compiler's source code, and only contains a few wasm-specific files. I intend to split the compiler and the repl into two builds to reduce the file size of the repl.wasm (to more easily use it in the tour).
+2. `./compiler/marc136/` contains my own code to build the Elm compiler as a WASM module. It directly uses the Elm compiler's source code, and only contains a few wasm-specific files. I intend to split the compiler and the repl into two builds to reduce the file size of the repl.wasm (to more easily use it in the tour).
 4. `./www/dist/` is deployed to https://elm.run/
 
 The rest are experimentation files that most likely noone else will find useful. There might also be vital files missing because of my .gitignore rules.
@@ -19,7 +18,5 @@ Some files might contain references to other experiments, my ulm compiler fork w
 
 ## Running Elm compiler in the browser
 
-In the last weeks, two full rewrites of the Elm compiler in Elm itself have surfaced. So I will maybe discontinue [elm-compiler-wasm](https://github.com/marc136/elm.run/tree/main/ulm-compiler-wasm) and instead switch to one of them for my REPL and editor.
-
-1. https://github.com/pithub/elm-compiler-in-elm-ui
-2. https://github.com/guida-lang/compiler
+There are currently three different compilers that I am investigating for compiling Elm code in the browser.
+See [./compiler](https://github.com/marc136/elm.run/tree/main/compiler/README.md).
