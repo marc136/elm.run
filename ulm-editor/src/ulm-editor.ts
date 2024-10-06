@@ -128,7 +128,7 @@ async function wip() {
   const pkg = "result-extra";
   const version = "2.4.0";
   const fetched = await fetch(
-    `/package-proxy/elm-community/${pkg}-${version}.tar.gz`,
+    `/package-proxy/elm-community/${pkg}/${version}.tar.gz`,
   );
   const tar = await parseTarGzip(await fetched.arrayBuffer());
   const dest = `/elm-home/0.19.1/packages/${org}/${pkg}`;
@@ -151,7 +151,7 @@ async function wip() {
   // I could try to fill it with spaces from wasm side similar to this?
   // fs.dir.contents.get("elm.json").data.fill(0x20);
 
-  const result = await ulm.wip(`${org}/${pkg}`);
+  const result = await ulm.addPackage(`${org}/${pkg}`);
 
   console.warn("🚧 ulm.wip", result);
   console.log("!!elm.json", await readFileToString("/elm.json"));
