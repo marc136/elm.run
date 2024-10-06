@@ -233,7 +233,7 @@ class UlmEditor extends HTMLElement {
       },
     });
     // this._editor.on('changes', this.sendChangeEvent.bind(this));
-    this._editor.on("changes", (evt) => console.log("editor changes", evt));
+    // this._editor.on("changes", (evt) => console.log("editor changes", evt));
 
     this._isCompiling = false;
     this.connectPorts();
