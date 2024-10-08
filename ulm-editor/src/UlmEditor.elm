@@ -53,6 +53,7 @@ type alias EditorModel =
     , outputPreference : OutputPreference
     , theme : Theme
     , knownPackages : List KnownPackage
+    , showPackageList : Bool
     }
 
 
@@ -92,6 +93,7 @@ init json =
                 , outputPreference = PreferProblems
                 , theme = flags.theme
                 , knownPackages = []
+                , showPackageList = False
                 }
             , Cmd.none
             )
@@ -236,7 +238,9 @@ updateEditor msg model =
             ( model, [ InteropDefinitions.WipJs |> SendFromElm ] )
 
         PressedPackagesButton ->
-            ( model, [ InteropDefinitions.LoadPackageList |> SendFromElm ] )
+            ( { model | showPackageList = not model.showPackageList }
+            , [ InteropDefinitions.LoadPackageList |> SendFromElm ]
+            )
 
 
 updateToElm : InteropDefinitions.ToElm -> EditorModel -> ( EditorModel, List Effect )
@@ -281,7 +285,7 @@ sortKnownPackages list =
 
         recommendedAuthors : List String
         recommendedAuthors =
-            [ "elm", "elmcraft", "elm-explorations", "elm-community" ]
+            [ "elm/", "elmcraft/", "elm-explorations/", "elm-community/" ]
 
         prioritizeAuthor : Int -> List String -> String -> Int
         prioritizeAuthor prio authors name =
@@ -310,6 +314,12 @@ sortKnownPackages list =
                     prioritizeAuthor 99 recommendedAuthors name
     in
     List.sortBy priority list
+
+
+searchInKnownPackages : String -> List KnownPackage -> List KnownPackage
+searchInKnownPackages key list =
+    -- TODO reduce or reorder list depending on search key
+    list
 
 
 revokeObjectUrl : Maybe ObjectUrl -> List Effect
@@ -353,7 +363,9 @@ viewEditor model =
         , Html.main_
             [ Html.Attributes.id "main"
             ]
-            [ Html.node "ulm-editor"
+            [ Html.Extra.viewIf model.showPackageList <|
+                viewPackages model
+            , Html.node "ulm-editor"
                 [ Html.Attributes.attribute "file" model.file
                 , Theme.toAttribute model.theme
                 , onCustomEvent compileResultEvent compileResultDecoder
@@ -384,6 +396,44 @@ viewMainNav model =
           else
             Html.button [ Html.Events.onClick <| SelectedTheme Theme.Dark ]
                 [ Html.text <| Theme.toString Theme.Dark ]
+        ]
+
+
+viewPackages : { m | knownPackages : List KnownPackage } -> Html Msg
+viewPackages { knownPackages } =
+    Html.section [ Html.Attributes.id "packages" ]
+        [ Html.h2 [] [ Html.text "Installed" ]
+        , Html.text "todo" -- render installed packages
+        , Html.h2 [] [ Html.text "Package registry" ]
+        , Html.input [ Html.Attributes.placeholder "Search" ] []
+        , knownPackages
+            |> searchInKnownPackages ""
+            |> List.map viewKnownPackage
+            |> Html.ul []
+        , Html.text (String.fromInt (List.length knownPackages) ++ " in total")
+        ]
+
+
+viewKnownPackage : KnownPackage -> Html Msg
+viewKnownPackage ( pkg, v ) =
+    let
+        name =
+            Elm.Package.toString pkg
+
+        version =
+            Elm.Version.toString v
+    in
+    Html.li []
+        [ Html.a
+            [ Html.Attributes.href <|
+                -- or maybe https://elm.dmy.fr/ and https://dark.elm.dmy.fr/ based on theme?
+                "https://package.elm-lang.org/packages/"
+                    ++ name
+                    ++ "/"
+                    ++ version
+            ]
+            [ Html.text name ]
+        , Html.text version
         ]
 
 

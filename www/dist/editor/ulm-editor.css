@@ -11,6 +11,18 @@ nav.main {
     justify-items: stretch;
 }
 
+#packages {
+    display: flex;
+    flex-direction: column;
+    flex: 1 0 auto;
+}
+
+ulm-editor,
+#output {
+    flex: 0 0 50vw;
+    width: 50vw;
+}
+
 #output {
     display: flex;
     flex-direction: row;

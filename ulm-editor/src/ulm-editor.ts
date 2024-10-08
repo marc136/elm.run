@@ -123,7 +123,7 @@ async function loadPackageList() {
       "Wasm compiler is not available, cannot query package list",
     );
   }
-  const result = await ulm.getPackages('newest');
+  const result = await ulm.getPackages("newest");
   if (typeof UlmEditor.elmApp?.ports.interopToElm.send !== "function") {
     throw new Error("Elm App is not available, cannot send package list");
   }
