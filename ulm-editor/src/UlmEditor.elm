@@ -408,6 +408,7 @@ viewPackages { knownPackages } =
         , Html.input [ Html.Attributes.placeholder "Search" ] []
         , knownPackages
             |> searchInKnownPackages ""
+            |> List.take 26
             |> List.map viewKnownPackage
             |> Html.ul []
         , Html.text (String.fromInt (List.length knownPackages) ++ " in total")
