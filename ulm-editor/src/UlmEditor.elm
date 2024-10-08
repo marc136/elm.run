@@ -2,7 +2,10 @@ module UlmEditor exposing (main)
 
 import Browser
 import Data.Problem
+import Dict exposing (Dict)
 import Elm.Error
+import Elm.Package
+import Elm.Version
 import Examples exposing (Example)
 import Heroicons.Solid as Icon
 import Html exposing (Html)
@@ -49,6 +52,7 @@ type alias EditorModel =
     , outputView : OutputView
     , outputPreference : OutputPreference
     , theme : Theme
+    , knownPackages : List KnownPackage
     }
 
 
@@ -67,6 +71,10 @@ type OutputPreference
     | PreferProgram
 
 
+type alias KnownPackage =
+    ( Elm.Package.Name, Elm.Version.Version )
+
+
 
 -- INIT
 
@@ -83,6 +91,7 @@ init json =
                 , outputView = ViewIntroduction
                 , outputPreference = PreferProblems
                 , theme = flags.theme
+                , knownPackages = []
                 }
             , Cmd.none
             )
@@ -237,10 +246,70 @@ updateToElm msg model =
             Debug.todo "not implemented"
 
         InteropDefinitions.PackageListLoaded (Err err) ->
+            -- Either an error in the Haskell code,
+            --  or decoding of package name or version has failed
             Debug.todo "not implemented"
 
-        InteropDefinitions.PackageListLoaded (Ok ok) ->
-            Debug.todo "not implemented"
+        InteropDefinitions.PackageListLoaded (Ok list) ->
+            ( { model | knownPackages = sortKnownPackages list }, [] )
+
+
+sortKnownPackages : InteropDefinitions.PackageList -> List KnownPackage
+sortKnownPackages list =
+    let
+        recommendedPackages : Dict String Int
+        recommendedPackages =
+            [ [ "elm/core", "elmcraft/core-extra", "elm/html", "elm-browser", "elm/random" ]
+            , [ "elm/parser" ]
+            , [ "elm/http", "lukewestby/elm-http-builder", "elm/file" ]
+            , [ "elm/json", "miniBill/elm-codec", "NoRedInk/elm-json-decode-pipeline" ]
+
+            -- URL parsing won't be a default use case in editor
+            -- , [ "elm/url", "lydell/elm-app-url" ]
+            , [ "elm/svg", "dzuk-mutant/elm-css", "mdgriffith/elm-ui" ]
+            , [ "dillonkearns/elm-markdown", "mdgriffith/elm-markup" ]
+            , --working with time and date
+              [ "elm/time", "justinmimbs/time-extra", "ryan-haskell/date-format", "justinmimbs/date" ]
+            , -- animations
+              [ "mdgriffith/elm-animator", "mdgriffith/elm-style-animation" ]
+            , -- for games
+              [ "eigenwijskids/elm-playground-eigenwijs", "justgook/webgl-playground", "w0rm/elm-physics" ]
+            ]
+                |> List.concat
+                |> List.indexedMap (\index value -> ( value, index ))
+                |> Dict.fromList
+
+        recommendedAuthors : List String
+        recommendedAuthors =
+            [ "elm", "elmcraft", "elm-explorations", "elm-community" ]
+
+        prioritizeAuthor : Int -> List String -> String -> Int
+        prioritizeAuthor prio authors name =
+            case authors of
+                [] ->
+                    9999
+
+                author :: rest ->
+                    if String.startsWith author name then
+                        prio
+
+                    else
+                        prioritizeAuthor (prio + 1) rest name
+
+        priority : KnownPackage -> Int
+        priority ( pkg, _ ) =
+            let
+                name =
+                    Elm.Package.toString pkg
+            in
+            case Dict.get name recommendedPackages of
+                Just index ->
+                    index
+
+                Nothing ->
+                    prioritizeAuthor 99 recommendedAuthors name
+    in
+    List.sortBy priority list
 
 
 revokeObjectUrl : Maybe ObjectUrl -> List Effect
