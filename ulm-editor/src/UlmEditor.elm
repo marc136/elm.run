@@ -106,6 +106,7 @@ type Msg
     | SwitchProgram
     | SelectedTheme Theme
     | PressedWipButton
+    | PressedPackagesButton
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -206,6 +207,9 @@ update msg global =
         ( PressedWipButton, model ) ->
             ( model, InteropDefinitions.WipJs |> InteropPorts.fromElm )
 
+        ( PressedPackagesButton, Editor _ ) ->
+            ( global, InteropDefinitions.LoadPackageList |> InteropPorts.fromElm )
+
 
 revokeObjectUrl : Maybe ObjectUrl -> Cmd msg
 revokeObjectUrl maybeUrl =
@@ -244,20 +248,42 @@ view model =
 
 viewEditor : EditorModel -> Html Msg
 viewEditor model =
-    Html.main_
-        [ Html.Attributes.id "main"
-        , Theme.toAttribute model.theme
-        ]
-        [ Html.node "ulm-editor"
-            [ Html.Attributes.attribute "file" model.file
-            , Theme.toAttribute model.theme
-            , onCustomEvent compileResultEvent compileResultDecoder
-
-            -- , onCustomEvent compileResultEvent (InteropDefinitions.interop.toElm |> TsJson.Decode.decoder |> ToElm )
+    Html.div [ Html.Attributes.class "wrapper", Theme.toAttribute model.theme ]
+        [ viewMainNav model
+        , Html.main_
+            [ Html.Attributes.id "main"
             ]
-            []
-        , Html.div [ Html.Attributes.id "output" ] <|
-            viewOutput model
+            [ Html.node "ulm-editor"
+                [ Html.Attributes.attribute "file" model.file
+                , Theme.toAttribute model.theme
+                , onCustomEvent compileResultEvent compileResultDecoder
+
+                -- , onCustomEvent compileResultEvent (InteropDefinitions.interop.toElm |> TsJson.Decode.decoder |> ToElm )
+                ]
+                []
+            , Html.div [ Html.Attributes.id "output" ] <|
+                viewOutput model
+            ]
+        ]
+
+
+viewMainNav : EditorModel -> Html Msg
+viewMainNav model =
+    Html.nav [ Html.Attributes.class "main" ]
+        [ Html.button [ Html.Events.onClick PressedPackagesButton ] [ Html.text "packages" ]
+        , Html.button [] [ Html.text "editor" ]
+        , Html.button [ Html.Events.onClick TriggeredCompile ] [ Html.text "run code" ]
+        , Html.button [] [ Html.text "examples" ]
+        , Html.button [] [ Html.text "show program" ]
+        , Html.button [] [ Html.text "show errros" ]
+        , Html.button [] [ Html.text "wip" ]
+        , if model.theme == Theme.Dark then
+            Html.button [ Html.Events.onClick <| SelectedTheme Theme.Light ]
+                [ Html.text <| Theme.toString Theme.Light ]
+
+          else
+            Html.button [ Html.Events.onClick <| SelectedTheme Theme.Dark ]
+                [ Html.text <| Theme.toString Theme.Dark ]
         ]
 
 

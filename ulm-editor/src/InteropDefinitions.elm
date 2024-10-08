@@ -7,6 +7,8 @@ module InteropDefinitions exposing
     , interop
     )
 
+import Elm.Package
+import Elm.Version
 import Json.Decode
 import Theme exposing (Theme)
 import TsJson.Decode as TsDecode exposing (Decoder)
@@ -29,17 +31,27 @@ type FromElm
     = TriggerCompile String
     | RevokeObjectUrl String
     | ReplaceCodeWith String
+    | LoadPackageList
     | WipJs
 
 
 type ToElm
     = OnCompileResult CompileResult
+    | PackageListLoaded PackageListResult
 
 
 type CompileResult
     = CompileSuccess { file : String, name : String }
     | CompileErrors { errors : List Json.Decode.Value }
     | CompileError { path : String, title : String, message : String }
+
+
+type alias PackageListResult =
+    Result (List ( String, String )) PackageList
+
+
+type alias PackageList =
+    List ( Elm.Package.Name, Elm.Version.Version )
 
 
 type alias Flags =
@@ -51,7 +63,7 @@ type alias Flags =
 fromElm : Encoder FromElm
 fromElm =
     TsEncode.union
-        (\vTriggerCompile vRevokeUrl vReplaceCodeWith vWipJs value ->
+        (\vTriggerCompile vRevokeUrl vReplaceCodeWith vWipJs vLoadPackageList value ->
             case value of
                 TriggerCompile filepath ->
                     vTriggerCompile filepath
@@ -64,6 +76,9 @@ fromElm =
 
                 WipJs ->
                     vWipJs ()
+
+                LoadPackageList ->
+                    vLoadPackageList ()
         )
         |> TsEncode.variantTagged "compile" TsEncode.string
         |> TsEncode.variantTagged "revoke-object-url" TsEncode.string
@@ -71,6 +86,7 @@ fromElm =
         --     (TsEncode.object [ required "url" identity TsEncode.string ])
         |> TsEncode.variantTagged "replace-code" TsEncode.string
         |> TsEncode.variantTagged "wip-js" TsEncode.null
+        |> TsEncode.variantTagged "load-package-list" TsEncode.null
         |> TsEncode.buildUnion
 
 
@@ -78,6 +94,7 @@ toElm : Decoder ToElm
 toElm =
     TsDecode.discriminatedUnion "tag"
         [ ( "compile-result", compileResultEvent )
+        , ( "get-packages", packageListEvent )
 
         --   , TsDecode.field "detail" (TsDecode.map OnCompileResult compileResult)
         --   )
@@ -110,6 +127,41 @@ compileResult =
                 (TsDecode.field "message" TsDecode.string)
           )
         ]
+
+
+packageListEvent : Decoder ToElm
+packageListEvent =
+    TsDecode.discriminatedUnion "result"
+        [ ( "ok", TsDecode.field "data" packageList |> TsDecode.map PackageListLoaded )
+        ]
+
+
+packageList : Decoder PackageListResult
+packageList =
+    TsDecode.keyValuePairs TsDecode.string
+        |> TsDecode.map
+            (\list ->
+                let
+                    result : { ok : PackageList, err : List ( String, String ) }
+                    result =
+                        List.foldl
+                            (\( k, v ) { ok, err } ->
+                                case ( Elm.Package.fromString k, Elm.Version.fromString v ) of
+                                    ( Just pkg, Just version ) ->
+                                        { ok = ( pkg, version ) :: ok, err = err }
+
+                                    _ ->
+                                        { ok = ok, err = ( k, v ) :: err }
+                            )
+                            { ok = [], err = [] }
+                            list
+                in
+                if result.err == [] then
+                    Ok result.ok
+
+                else
+                    Err result.err
+            )
 
 
 flags : Decoder Flags

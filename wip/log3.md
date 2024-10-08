@@ -186,3 +186,19 @@ This will at latest hit me when I'm trying to remove installed packages.
 One option might be to look how to trim the file in the Haskell code. Maybe there is an optimization if a package is added then it won't check if the new file size will be smaller than before (happened for me only because I used an indentation of 8 chars before).
 Or maybe I will fill it with spaces 0x20?
 Not yet sure how to continue there.
+
+---
+
+For installing packages, I need a current list of all available packages. elm-lang.org/try gets a special list.
+
+But I think I will try to use the registry.dat that I already have.
+
+Do I want to write an Elm parser for registry.dat? Or maybe reuse one from the elm-in-elm forks? Or do I rather parse it in ulm.wasm and then load it into my Elm app?
+
+For now, I decided to query the list of packages from wasm, because that same list is also needed for compilation of dependencies and for installing/adding new packages.
+
+---
+
+The compiler reads registry.dat for that but only returns the newest version number (and discards the other ones).
+
+The compiler should also read the direct dependencies from elm.json and use another message to inform the editor about them. This message will also be emitted after successfully installing a new version.
