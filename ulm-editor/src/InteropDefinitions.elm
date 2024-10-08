@@ -157,7 +157,7 @@ packageList =
                             list
                 in
                 if result.err == [] then
-                    Ok result.ok
+                    Ok <| List.reverse <| result.ok
 
                 else
                     Err result.err
