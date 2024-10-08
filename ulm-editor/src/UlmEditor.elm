@@ -26,7 +26,7 @@ main : Program Json.Decode.Value Model Msg
 main =
     Browser.element
         { init = init
-        , update = update
+        , update = \msg model -> update msg model |> Tuple.mapSecond performEffects
         , subscriptions = subscriptions
         , view = view
         }
@@ -101,7 +101,7 @@ type Msg
     | CompilationFailed Elm.Error.Error
     | TriggeredCompile
     | ToElm (Result Json.Decode.Error InteropDefinitions.ToElm)
-    | InsertExample Example
+    | PressedInsertExample Example
     | PreferForOutput OutputPreference
     | SwitchProgram
     | SelectedTheme Theme
@@ -109,26 +109,53 @@ type Msg
     | PressedPackagesButton
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+type Effect
+    = SendFromElm InteropDefinitions.FromElm
+
+
+update : Msg -> Model -> ( Model, List Effect )
 update msg global =
     case ( msg, global ) of
         ( NoOp, _ ) ->
-            ( global, Cmd.none )
+            ( global, [] )
 
         ( _, InitFailure _ ) ->
-            ( global, Cmd.none )
+            ( global, [] )
 
-        ( ToElm (Err _), _ ) ->
-            ( global, Cmd.none )
+        ( _, Editor model ) ->
+            updateEditor msg model
+                |> Tuple.mapFirst Editor
 
-        -- ( ToElm (Ok OnCompileResult), Editor model ) ->
-        --     ( Editor { model | lastDocument = Just url }
-        --     , model.visibleProgram |> revokeObjectUrl
-        --     )
-        ( ToElm (Ok _), _ ) ->
-            ( global, Cmd.none )
 
-        ( CompiledNewDocument url, Editor model ) ->
+performEffects : List Effect -> Cmd Msg
+performEffects =
+    Cmd.batch << List.map performEffect
+
+
+performEffect : Effect -> Cmd Msg
+performEffect effect =
+    case effect of
+        SendFromElm event ->
+            InteropPorts.fromElm event
+
+
+updateEditor : Msg -> EditorModel -> ( EditorModel, List Effect )
+updateEditor msg model =
+    case msg of
+        NoOp ->
+            ( model, [] )
+
+        ToElm (Err err) ->
+            let
+                _ =
+                    Debug.log "ToElm Err" err
+            in
+            ( model, [] )
+
+        ToElm (Ok ok) ->
+            updateToElm ok model
+
+        CompiledNewDocument url ->
             let
                 ( visibleProgram, outputView ) =
                     if model.isCompiling && model.lastCompilation == NotStarted then
@@ -141,81 +168,85 @@ update msg global =
                         , model.outputView
                         )
             in
-            ( Editor
-                { model
-                    | lastCompilation = Success url
-                    , isCompiling = False
-                    , visibleProgram = visibleProgram
-                    , outputView = outputView
-                }
+            ( { model
+                | lastCompilation = Success url
+                , isCompiling = False
+                , visibleProgram = visibleProgram
+                , outputView = outputView
+              }
             , model.visibleProgram |> revokeObjectUrl
             )
 
-        ( CompilationFailed error, Editor model ) ->
-            ( Editor
-                { model
-                    | lastCompilation = Failed <| Data.Problem.toIndexedProblems error
-                    , isCompiling = False
-                }
-            , Cmd.none
+        CompilationFailed error ->
+            ( { model
+                | lastCompilation = Failed <| Data.Problem.toIndexedProblems error
+                , isCompiling = False
+              }
+            , []
             )
 
-        ( TriggeredCompile, Editor model ) ->
-            ( Editor { model | isCompiling = True, lastCompilation = NotStarted }
-            , InteropPorts.fromElm <| InteropDefinitions.TriggerCompile model.file
+        TriggeredCompile ->
+            ( { model | isCompiling = True, lastCompilation = NotStarted }
+            , [ InteropDefinitions.TriggerCompile model.file |> SendFromElm ]
             )
 
-        ( InsertExample example, Editor model ) ->
-            ( Editor
-                { model
-                    | lastCompilation = NotStarted
-                    , visibleProgram = Nothing
-                    , outputView = ViewCompiled
-                }
-            , Cmd.batch
-                [ Examples.getCode example
-                    |> InteropDefinitions.ReplaceCodeWith
-                    |> InteropPorts.fromElm
-                , model.visibleProgram |> revokeObjectUrl
-                ]
+        PressedInsertExample example ->
+            ( { model
+                | lastCompilation = NotStarted
+                , visibleProgram = Nothing
+                , outputView = ViewCompiled
+              }
+            , (Examples.getCode example |> InteropDefinitions.ReplaceCodeWith |> SendFromElm)
+                :: revokeObjectUrl model.visibleProgram
             )
 
-        ( PreferForOutput preference, Editor model ) ->
-            ( Editor { model | outputPreference = preference }
-            , Cmd.none
+        PreferForOutput preference ->
+            ( { model | outputPreference = preference }
+            , []
             )
 
-        ( SwitchProgram, Editor model ) ->
-            ( Editor
-                { model
-                    | visibleProgram =
-                        case model.lastCompilation of
-                            Success url ->
-                                Just url
+        SwitchProgram ->
+            ( { model
+                | visibleProgram =
+                    case model.lastCompilation of
+                        Success url ->
+                            Just url
 
-                            _ ->
-                                Nothing
-                }
+                        _ ->
+                            Nothing
+              }
             , revokeObjectUrl model.visibleProgram
             )
 
-        ( SelectedTheme theme, Editor model ) ->
-            ( Editor { model | theme = theme }
-            , Cmd.none
+        SelectedTheme theme ->
+            ( { model | theme = theme }
+            , []
             )
 
-        ( PressedWipButton, model ) ->
-            ( model, InteropDefinitions.WipJs |> InteropPorts.fromElm )
+        PressedWipButton ->
+            ( model, [ InteropDefinitions.WipJs |> SendFromElm ] )
 
-        ( PressedPackagesButton, Editor _ ) ->
-            ( global, InteropDefinitions.LoadPackageList |> InteropPorts.fromElm )
+        PressedPackagesButton ->
+            ( model, [ InteropDefinitions.LoadPackageList |> SendFromElm ] )
 
 
-revokeObjectUrl : Maybe ObjectUrl -> Cmd msg
+updateToElm : InteropDefinitions.ToElm -> EditorModel -> ( EditorModel, List Effect )
+updateToElm msg model =
+    case msg of
+        InteropDefinitions.OnCompileResult compileResult ->
+            Debug.todo "not implemented"
+
+        InteropDefinitions.PackageListLoaded (Err err) ->
+            Debug.todo "not implemented"
+
+        InteropDefinitions.PackageListLoaded (Ok ok) ->
+            Debug.todo "not implemented"
+
+
+revokeObjectUrl : Maybe ObjectUrl -> List Effect
 revokeObjectUrl maybeUrl =
-    maybeUrl
-        |> Maybe.map (InteropDefinitions.RevokeObjectUrl >> InteropPorts.fromElm)
-        |> Maybe.withDefault Cmd.none
+    Maybe.map (SendFromElm << InteropDefinitions.RevokeObjectUrl) maybeUrl
+        |> Maybe.Extra.toList
 
 
 
@@ -423,7 +454,7 @@ examples : List (Html Msg)
 examples =
     List.map
         (\( name, example ) ->
-            Html.li [] [ Html.button [ Html.Events.onClick <| InsertExample example ] [ Html.text name ] ]
+            Html.li [] [ Html.button [ Html.Events.onClick <| PressedInsertExample example ] [ Html.text name ] ]
         )
         Examples.list
         ++ [ Html.li []
