@@ -16,6 +16,7 @@ import Html.Keyed
 import InteropDefinitions
 import InteropPorts
 import Json.Decode
+import List.Extra
 import Maybe.Extra
 import Theme exposing (Theme)
 import TsJson.Decode
@@ -52,6 +53,7 @@ type alias EditorModel =
     , outputView : OutputView
     , outputPreference : OutputPreference
     , theme : Theme
+    , installedPackages : List ( Elm.Package.Name, InstalledPackageState )
     , knownPackages : List KnownPackage
     , showPackageList : Bool
     }
@@ -70,6 +72,13 @@ type alias ObjectUrl =
 type OutputPreference
     = PreferProblems
     | PreferProgram
+
+
+type InstalledPackageState
+    = InstallingPackage
+    | InstalledPackage Elm.Version.Version
+    | RemovingPackage
+    | InstallingPackageFailed
 
 
 type alias KnownPackage =
@@ -92,6 +101,7 @@ init json =
                 , outputView = ViewIntroduction
                 , outputPreference = PreferProblems
                 , theme = flags.theme
+                , installedPackages = []
                 , knownPackages = []
                 , showPackageList = False
                 }
@@ -118,6 +128,8 @@ type Msg
     | SelectedTheme Theme
     | PressedWipButton
     | PressedPackagesButton
+    | PressedAddPackageButton Elm.Package.Name
+    | PressedRemovePackageButton Elm.Package.Name
 
 
 type Effect
@@ -240,6 +252,32 @@ updateEditor msg model =
         PressedPackagesButton ->
             ( { model | showPackageList = not model.showPackageList }
             , [ InteropDefinitions.LoadPackageList |> SendFromElm ]
+            )
+
+        PressedAddPackageButton package ->
+            ( { model
+                | installedPackages =
+                    ( package, InstallingPackage )
+                        :: model.installedPackages
+                        |> List.Extra.uniqueBy Tuple.first
+              }
+            , [ InteropDefinitions.AddPackage package |> SendFromElm ]
+            )
+
+        PressedRemovePackageButton package ->
+            ( { model
+                | installedPackages =
+                    List.map
+                        (\( pkg, state ) ->
+                            if pkg == package then
+                                ( pkg, RemovingPackage )
+
+                            else
+                                ( pkg, state )
+                        )
+                        model.installedPackages
+              }
+            , [ InteropDefinitions.RemovePackage package |> SendFromElm ]
             )
 
 
@@ -369,8 +407,6 @@ viewEditor model =
                 [ Html.Attributes.attribute "file" model.file
                 , Theme.toAttribute model.theme
                 , onCustomEvent compileResultEvent compileResultDecoder
-
-                -- , onCustomEvent compileResultEvent (InteropDefinitions.interop.toElm |> TsJson.Decode.decoder |> ToElm )
                 ]
                 []
             , Html.div [ Html.Attributes.id "output" ] <|
@@ -399,11 +435,18 @@ viewMainNav model =
         ]
 
 
-viewPackages : { m | knownPackages : List KnownPackage } -> Html Msg
-viewPackages { knownPackages } =
+viewPackages :
+    { m
+        | installedPackages : List ( Elm.Package.Name, InstalledPackageState )
+        , knownPackages : List KnownPackage
+    }
+    -> Html Msg
+viewPackages { installedPackages, knownPackages } =
     Html.section [ Html.Attributes.id "packages" ]
         [ Html.h2 [] [ Html.text "Installed" ]
-        , Html.text "todo" -- render installed packages
+        , installedPackages
+            |> List.map viewInstalledPackage
+            |> Html.ul []
         , Html.h2 [] [ Html.text "Package registry" ]
         , Html.input [ Html.Attributes.placeholder "Search" ] []
         , knownPackages
@@ -415,27 +458,63 @@ viewPackages { knownPackages } =
         ]
 
 
+viewInstalledPackage : ( Elm.Package.Name, InstalledPackageState ) -> Html Msg
+viewInstalledPackage ( name, state ) =
+    Html.li [] <|
+        case state of
+            InstallingPackage ->
+                [ viewPackage name Nothing
+                , Html.text "installing"
+                , Html.button [ Html.Events.onClick <| PressedRemovePackageButton name ] [ Html.text "remove" ]
+                ]
+
+            InstalledPackage version ->
+                [ viewPackage name (Just version)
+                , Html.text <| Elm.Version.toString version
+                , Html.button [ Html.Events.onClick <| PressedRemovePackageButton name ] [ Html.text "remove" ]
+                ]
+
+            RemovingPackage ->
+                [ viewPackage name Nothing
+                , Html.text "removing"
+                , Html.button [ Html.Events.onClick <| PressedRemovePackageButton name ] [ Html.text "remove" ]
+                ]
+
+            InstallingPackageFailed ->
+                [ Html.text <| "Could not add " ++ Elm.Package.toString name
+                , Html.button [ Html.Events.onClick <| PressedAddPackageButton name ] [ Html.text "try again" ]
+                ]
+
+
 viewKnownPackage : KnownPackage -> Html Msg
-viewKnownPackage ( pkg, v ) =
+viewKnownPackage ( name, version ) =
+    Html.li []
+        [ viewPackage name (Just version)
+        , Html.text <| Elm.Version.toString version
+        , Html.button [ Html.Events.onClick <| PressedAddPackageButton name ]
+            [ Html.text "+" ]
+        ]
+
+
+viewPackage : Elm.Package.Name -> Maybe Elm.Version.Version -> Html msg
+viewPackage package maybeVersion =
     let
         name =
-            Elm.Package.toString pkg
+            Elm.Package.toString package
 
         version =
-            Elm.Version.toString v
+            Maybe.map Elm.Version.toString maybeVersion
+                |> Maybe.withDefault "latest"
     in
-    Html.li []
-        [ Html.a
-            [ Html.Attributes.href <|
-                -- or maybe https://elm.dmy.fr/ and https://dark.elm.dmy.fr/ based on theme?
-                "https://package.elm-lang.org/packages/"
-                    ++ name
-                    ++ "/"
-                    ++ version
-            ]
-            [ Html.text name ]
-        , Html.text version
+    Html.a
+        [ Html.Attributes.href <|
+            -- or maybe https://elm.dmy.fr/ and https://dark.elm.dmy.fr/ based on theme?
+            "https://package.elm-lang.org/packages/"
+                ++ name
+                ++ "/"
+                ++ version
         ]
+        [ Html.text name ]
 
 
 viewOutput : EditorModel -> List (Html Msg)

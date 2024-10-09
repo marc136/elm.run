@@ -15,6 +15,34 @@ nav.main {
     display: flex;
     flex-direction: column;
     flex: 1 0 auto;
+    max-width: 30em;
+    padding: 0.5em 1em;
+
+    h2 {
+        margin-bottom: 0.5em;
+    }
+
+    ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+        gap: 0.5em;
+
+        li {
+            margin: 0.25em 0;
+            display: flex;
+            gap: 0.5em;
+
+            > a {
+                flex: 1 1 auto;
+                text-overflow: ellipsis;
+            }
+
+            > button {
+                margin-left: 1em;
+            }
+        }
+    }
 }
 
 ulm-editor,

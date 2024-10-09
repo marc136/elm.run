@@ -2,6 +2,7 @@ module InteropDefinitions exposing
     ( CompileResult
     , Flags
     , FromElm(..)
+    , PackageList
     , ToElm(..)
     , compileResult
     , interop
@@ -32,6 +33,8 @@ type FromElm
     | RevokeObjectUrl String
     | ReplaceCodeWith String
     | LoadPackageList
+    | AddPackage Elm.Package.Name
+    | RemovePackage Elm.Package.Name
     | WipJs
 
 
@@ -63,7 +66,7 @@ type alias Flags =
 fromElm : Encoder FromElm
 fromElm =
     TsEncode.union
-        (\vTriggerCompile vRevokeUrl vReplaceCodeWith vWipJs vLoadPackageList value ->
+        (\vTriggerCompile vRevokeUrl vReplaceCodeWith vWipJs vLoadPackageList vAddPackage vRemovePackage value ->
             case value of
                 TriggerCompile filepath ->
                     vTriggerCompile filepath
@@ -79,6 +82,12 @@ fromElm =
 
                 LoadPackageList ->
                     vLoadPackageList ()
+
+                AddPackage name ->
+                    vAddPackage <| Elm.Package.toString name
+
+                RemovePackage name ->
+                    vRemovePackage <| Elm.Package.toString name
         )
         |> TsEncode.variantTagged "compile" TsEncode.string
         |> TsEncode.variantTagged "revoke-object-url" TsEncode.string
@@ -87,6 +96,8 @@ fromElm =
         |> TsEncode.variantTagged "replace-code" TsEncode.string
         |> TsEncode.variantTagged "wip-js" TsEncode.null
         |> TsEncode.variantTagged "load-package-list" TsEncode.null
+        |> TsEncode.variantTagged "add-package" TsEncode.string
+        |> TsEncode.variantTagged "remove-package" TsEncode.string
         |> TsEncode.buildUnion
 
 
