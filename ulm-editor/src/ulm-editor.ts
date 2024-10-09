@@ -114,6 +114,7 @@ async function loadPackageRegistry() {
   // then send it to wasm and store it in binary form?
   // -> See `fetch` in elm-compiler-wasm/builder/src/Deps/Registry.hs
   const allpackages = await fetch("/elm-home/0.19.1/packages/registry.dat");
+  // TODO remove packages that are not compatible with Elm 0.19.1, e.g. `elm-tools/parser`
   writeFileInDir(pkgDir, "registry.dat", await allpackages.arrayBuffer());
 }
 
