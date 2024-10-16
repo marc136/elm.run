@@ -53,9 +53,10 @@ type alias EditorModel =
     , outputView : OutputView
     , outputPreference : OutputPreference
     , theme : Theme
-    , installedPackages : List ( Elm.Package.Name, InstalledPackageState )
+    , installedPackages : List InstalledPackage
     , knownPackages : List KnownPackage
     , showPackageList : Bool
+    , searchForPackages : String
     }
 
 
@@ -72,6 +73,10 @@ type alias ObjectUrl =
 type OutputPreference
     = PreferProblems
     | PreferProgram
+
+
+type alias InstalledPackage =
+    ( Elm.Package.Name, InstalledPackageState )
 
 
 type InstalledPackageState
@@ -104,6 +109,7 @@ init json =
                 , installedPackages = []
                 , knownPackages = []
                 , showPackageList = False
+                , searchForPackages = ""
                 }
             , Cmd.none
             )
@@ -130,6 +136,7 @@ type Msg
     | PressedPackagesButton
     | PressedAddPackageButton Elm.Package.Name
     | PressedRemovePackageButton Elm.Package.Name
+    | SearchingForPackage String
 
 
 type Effect
@@ -280,6 +287,9 @@ updateEditor msg model =
             , [ InteropDefinitions.RemovePackage package |> SendFromElm ]
             )
 
+        SearchingForPackage string ->
+            ( { model | searchForPackages = string }, [] )
+
 
 updateToElm : InteropDefinitions.ToElm -> EditorModel -> ( EditorModel, List Effect )
 updateToElm msg model =
@@ -294,6 +304,22 @@ updateToElm msg model =
 
         InteropDefinitions.PackageListLoaded (Ok list) ->
             ( { model | knownPackages = sortKnownPackages list }, [] )
+
+        InteropDefinitions.PackageAdded (Err err) ->
+            Debug.todo "not implemented"
+
+        InteropDefinitions.PackageAdded (Ok data) ->
+            ( { model | installedPackages = packageAdded data model.installedPackages }
+            , []
+            )
+
+        InteropDefinitions.PackageRemoved (Err err) ->
+            Debug.todo "not implemented"
+
+        InteropDefinitions.PackageRemoved (Ok name) ->
+            ( { model | installedPackages = packageRemoved name model.installedPackages }
+            , []
+            )
 
 
 sortKnownPackages : InteropDefinitions.PackageList -> List KnownPackage
@@ -354,10 +380,21 @@ sortKnownPackages list =
     List.sortBy priority list
 
 
-searchInKnownPackages : String -> List KnownPackage -> List KnownPackage
-searchInKnownPackages key list =
-    -- TODO reduce or reorder list depending on search key
-    list
+packageAdded : InteropDefinitions.PackageAddedOk -> List InstalledPackage -> List InstalledPackage
+packageAdded added =
+    List.map
+        (\( pkg, state ) ->
+            if added.name == pkg then
+                ( pkg, InstalledPackage added.version )
+
+            else
+                ( pkg, state )
+        )
+
+
+packageRemoved : Elm.Package.Name -> List InstalledPackage -> List InstalledPackage
+packageRemoved name =
+    List.filter (\( pkg, _ ) -> pkg /= name)
 
 
 revokeObjectUrl : Maybe ObjectUrl -> List Effect
@@ -439,18 +476,23 @@ viewPackages :
     { m
         | installedPackages : List ( Elm.Package.Name, InstalledPackageState )
         , knownPackages : List KnownPackage
+        , searchForPackages : String
     }
     -> Html Msg
-viewPackages { installedPackages, knownPackages } =
+viewPackages { installedPackages, knownPackages, searchForPackages } =
     Html.section [ Html.Attributes.id "packages" ]
         [ Html.h2 [] [ Html.text "Installed" ]
         , installedPackages
             |> List.map viewInstalledPackage
             |> Html.ul []
         , Html.h2 [] [ Html.text "Package registry" ]
-        , Html.input [ Html.Attributes.placeholder "Search" ] []
+        , Html.input
+            [ Html.Attributes.placeholder "Search"
+            , Html.Events.onInput SearchingForPackage
+            ]
+            []
         , knownPackages
-            |> searchInKnownPackages ""
+            |> searchInKnownPackages searchForPackages
             |> List.take 26
             |> List.map viewKnownPackage
             |> Html.ul []
@@ -484,6 +526,13 @@ viewInstalledPackage ( name, state ) =
                 [ Html.text <| "Could not add " ++ Elm.Package.toString name
                 , Html.button [ Html.Events.onClick <| PressedAddPackageButton name ] [ Html.text "try again" ]
                 ]
+
+
+searchInKnownPackages : String -> List KnownPackage -> List KnownPackage
+searchInKnownPackages key list =
+    -- TODO maybe I want to cache the results (or maybe keyed/lazy will be enough)
+    -- TODO search by distance
+    List.filter (\( name, _ ) -> String.contains key <| Elm.Package.toString name) list
 
 
 viewKnownPackage : KnownPackage -> Html Msg
