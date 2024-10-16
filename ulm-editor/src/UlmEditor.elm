@@ -461,7 +461,7 @@ viewMainNav model =
         , Html.button [] [ Html.text "examples" ]
         , Html.button [] [ Html.text "show program" ]
         , Html.button [] [ Html.text "show errros" ]
-        , Html.button [] [ Html.text "wip" ]
+        , Html.button [ Html.Events.onClick <| PressedWipButton ] [ Html.text "wip" ]
         , if model.theme == Theme.Dark then
             Html.button [ Html.Events.onClick <| SelectedTheme Theme.Light ]
                 [ Html.text <| Theme.toString Theme.Light ]
