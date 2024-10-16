@@ -7,7 +7,7 @@ import {
   pkgDir,
   writeFileInDir,
 } from "./fs.ts";
-import type { Compiler } from "./ulm-wasm.ts";
+import type { Compiler } from "../../compiler/marc136/ulm.ts";
 import { parseTarGzip } from "nanotar";
 import type { Elm, ElmApp } from "./UlmEditor.elm";
 
@@ -54,7 +54,7 @@ let ulm: Compiler | null = null;
 async function initWasmCompiler() {
   if (ulm) return;
 
-  const { loadCompiler } = await import("./ulm-wasm.ts");
+  const { loadCompiler } = await import("../../compiler/marc136/ulm.ts");
   ulm = await loadCompiler(fs);
   await runElmInit();
   console.warn("loaded wasm-editor");
@@ -322,6 +322,10 @@ class UlmEditor extends HTMLElement {
           break;
         case "load-package-list":
           return loadPackageList();
+        case "add-package":
+          return this.addPackage(msg.data);
+        case "remove-package":
+          return this.removePackage(msg.data);
         case "wip-js":
           return wip();
         default:
@@ -353,9 +357,22 @@ class UlmEditor extends HTMLElement {
         this.emit("compile-result", result);
       }
     } catch (ex) {
+      console.error("compilation failed", ex);
     } finally {
       this._isCompiling = false;
     }
+  }
+
+  private async addPackage(name) {
+    const result = await ulm.addPackage(name);
+    console.log("addPackage", result);
+    UlmEditor.elmApp?.ports.interopToElm.send(result);
+  }
+
+  private async removePackage(name) {
+    const result = await ulm.removePackage(name);
+    console.log("removePackage", result);
+    UlmEditor.elmApp?.ports.interopToElm.send(result);
   }
 }
 

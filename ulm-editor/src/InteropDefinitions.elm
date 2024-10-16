@@ -2,6 +2,7 @@ module InteropDefinitions exposing
     ( CompileResult
     , Flags
     , FromElm(..)
+    , PackageAddedOk
     , PackageList
     , ToElm(..)
     , compileResult
@@ -41,6 +42,8 @@ type FromElm
 type ToElm
     = OnCompileResult CompileResult
     | PackageListLoaded PackageListResult
+    | PackageAdded PackageAddedResult
+    | PackageRemoved (Result String Elm.Package.Name)
 
 
 type CompileResult
@@ -55,6 +58,17 @@ type alias PackageListResult =
 
 type alias PackageList =
     List ( Elm.Package.Name, Elm.Version.Version )
+
+
+type alias PackageAddedResult =
+    Result ( String, Json.Decode.Value ) PackageAddedOk
+
+
+type alias PackageAddedOk =
+    { name : Elm.Package.Name
+    , version : Elm.Version.Version
+    , comment : String
+    }
 
 
 type alias Flags =
@@ -103,9 +117,11 @@ fromElm =
 
 toElm : Decoder ToElm
 toElm =
-    TsDecode.discriminatedUnion "tag"
+    TsDecode.discriminatedUnion "fn"
         [ ( "compile-result", compileResultEvent )
-        , ( "get-packages", packageListEvent )
+        , ( "getPackages", packageListEvent )
+        , ( "addPackage", addPackageEvent )
+        , ( "removePackage", removePackageEvent )
 
         --   , TsDecode.field "detail" (TsDecode.map OnCompileResult compileResult)
         --   )
@@ -172,6 +188,71 @@ packageList =
 
                 else
                     Err result.err
+            )
+
+
+addPackageEvent : Decoder ToElm
+addPackageEvent =
+    decodeResult addPackageOkEvent addPackageErrEvent
+
+
+addPackageOkEvent : Decoder ToElm
+addPackageOkEvent =
+    TsDecode.map4
+        (\added version comment value ->
+            case ( Elm.Package.fromString added, Elm.Version.fromString version ) of
+                ( Just name, Just v ) ->
+                    Ok { name = name, version = v, comment = comment } |> PackageAdded
+
+                ( Nothing, _ ) ->
+                    Err ( "Could not decode package name '" ++ added ++ "'", value ) |> PackageAdded
+
+                ( _, Nothing ) ->
+                    Err ( "Could not decode package version '" ++ version ++ "'", value ) |> PackageAdded
+        )
+        (TsDecode.field "added" TsDecode.string)
+        (TsDecode.field "version" TsDecode.string)
+        (TsDecode.field "comment" TsDecode.string)
+        TsDecode.value
+
+
+addPackageErrEvent : Decoder ToElm
+addPackageErrEvent =
+    TsDecode.map2
+        (\error value -> PackageAdded (Err ( error, value )))
+        (TsDecode.field "error" TsDecode.string)
+        (TsDecode.field "data" TsDecode.value)
+
+
+removePackageEvent : Decoder ToElm
+removePackageEvent =
+    TsDecode.map
+        (\removed ->
+            Elm.Package.fromString removed
+                |> Result.fromMaybe removed
+                |> PackageRemoved
+        )
+        (TsDecode.field "removed" TsDecode.string)
+
+
+decodeResult : Decoder ToElm -> Decoder ToElm -> Decoder ToElm
+decodeResult okDecoder errDecoder =
+    TsDecode.field "result" TsDecode.string
+        |> TsDecode.andThen
+            (TsDecode.andThenInit
+                (\ok err result ->
+                    case result of
+                        "ok" ->
+                            ok
+
+                        "err" ->
+                            err
+
+                        _ ->
+                            TsDecode.fail <| "Unexpected `result='" ++ result ++ "'`"
+                )
+                |> TsDecode.andThenDecoder (TsDecode.field "data" okDecoder)
+                |> TsDecode.andThenDecoder errDecoder
             )
 
 
