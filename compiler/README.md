@@ -1,8 +1,8 @@
 # Elm compilers
 
-In the last weeks, two full rewrites of the Elm compiler in Elm itself have surfaced.\
+In the last weeks, two full rewrites of the Elm compiler in Elm itself have surfaced.
 
-I'm not sure yet which project will work better of the different tools I want to have on [elm.run](https://elm.run), but the wasm build is maybe too heavyweight for a tour or the repl in comparison.
+I'm not sure yet which project will work better for the different tools I want to have on [elm.run](https://elm.run), but the wasm build is maybe too heavyweight for a tour or the repl in comparison.
 
 The elm-in-elm rewrites might also make it easier to [add translated error messages](https://github.com/katjam/local-elm/issues/5), which I'm interested in.
 
