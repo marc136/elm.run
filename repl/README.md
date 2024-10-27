@@ -72,6 +72,8 @@ npm run dev
 
 ## TODO
 
+- Update list of resources to cache for offline usage in build process www/dist/repl/repl-serviceworker.js
+
 ### Further steps
 
 - Fake elm-format

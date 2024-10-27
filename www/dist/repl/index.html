@@ -43,10 +43,17 @@
   <!-- <script src="/editor/custom-elements.js"></script> -->
   <script src="/repl/ulm-repl.js"></script>
   <script type="module">
-    import { init } from '/repl/ulm-repl.mjs'
-    init()
+    import { init } from '/repl/ulm-repl.mjs';
+    init();
+    if ("serviceWorker" in navigator) {
+      try { 
+        await navigator.serviceWorker.register('repl-serviceworker.js');
+        console.info('Service worker was installed');
+      } catch (ex) {
+        console.error('registering the service worker has failed', ex);
+      }
+    }
   </script>
-
 </body>
 
 </html>
