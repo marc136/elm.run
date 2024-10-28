@@ -54,7 +54,7 @@ async function runElmInit() {
   const result = await fetch("/elm-all-examples-package-artifacts.tar.gz");
   const tar = await parseTarGzip(await result.arrayBuffer());
   console.log("tar", tar);
-  await unpackInto("/elm-home/0.19.1/packages", tar);
+  await unpackInto({ dest: "/elm-home/0.19.1/packages", tar });
 
   await writeFile(
     "/elm.json",

@@ -73,7 +73,6 @@ npm run dev
 ## TODO
 
 - Update list of resources to cache for offline usage in build process www/dist/repl/repl-serviceworker.js
-- Fix REPL after extracting ts helpers
 
 ### Further steps
 
