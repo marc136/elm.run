@@ -3,6 +3,7 @@ module UlmRepl exposing (main, view)
 import AnsiExtra
 import Browser
 import Data.Problem
+import ElmSyntaxFormat
 import Heroicons.Solid as Icon
 import Html exposing (Html)
 import Html.Attributes
@@ -332,7 +333,8 @@ enhanceEvaluatedTextInput { input, id, result } =
                 input
 
             _ ->
-                elmFormat input
+                ElmSyntaxFormat.formatCode input
+                    |> Result.withDefault input
     , result =
         case result of
             Io.EvaluatedDeclaration decl ->
@@ -341,12 +343,6 @@ enhanceEvaluatedTextInput { input, id, result } =
             _ ->
                 result
     }
-
-
-elmFormat : String -> String
-elmFormat unformatted =
-    -- TODO see tests/ElmFormat.elm
-    unformatted
 
 
 prependDeclarationTypes : Io.NewDeclaration -> Io.NewDeclaration
