@@ -39,3 +39,14 @@ checkFormatter name input expected =
         \() ->
             ElmSyntaxFormat.formatCode input
                 |> Expect.equal expected
+
+
+formatIfExpression =
+    -- this code is executed in the Elm REPL, and I also want to format it
+    checkFormatter "TODO format if expression"
+        """if True then 1 else 2"""
+        (Ok """if True then
+    1
+else
+    2""")
+        |> Test.skip
