@@ -11,7 +11,7 @@
             "elm/html": "1.0.0",
             "elm/parser": "1.1.0",
             "lue-bird/elm-syntax-format": "1.0.0",
-            "stil4m/elm-syntax": "7.3.6"
+            "stil4m/elm-syntax": "7.3.7"
         },
         "indirect": {
             "elm/json": "1.1.3",
