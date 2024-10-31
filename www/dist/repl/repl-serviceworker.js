@@ -1,4 +1,4 @@
-const VERSION = "v1";
+const VERSION = "v2";
 const OFFLINE_CACHE = `repl-${VERSION}`;
 
 const FILES_TO_CACHE = [
